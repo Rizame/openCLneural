@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 project(HelloOpenCL LANGUAGES CXX)
 
-find_package(OpenCL CONFIG REQUIRED)
+find_package(OpenCL REQUIRED)
 
 add_executable(${PROJECT_NAME} main.cpp)
 

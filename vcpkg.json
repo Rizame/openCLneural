@@ -1,6 +1,6 @@
 {
   "dependencies": [
-    "opencl"
+    {"name":"opencl","platform":"!osx"}
   ],
   "name": "opencltest",
   "version": "1.0"
