@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    "opencl"
+  ],
+  "name": "opencltest",
+  "version": "1.0"
+}
