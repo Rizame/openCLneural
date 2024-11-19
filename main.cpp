@@ -12,9 +12,9 @@ int main()
     CL_err = clGetPlatformIDs( 0, NULL, &numPlatforms );
 
     if (CL_err == CL_SUCCESS)
-        printf_s("%u platform(s) found\n", numPlatforms);
+        printf("%u platform(s) found\n", numPlatforms);
     else
-        printf_s("clGetPlatformIDs(%i)\n", CL_err);
+        printf("clGetPlatformIDs(%i)\n", CL_err);
 
     return 0;
 }

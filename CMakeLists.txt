@@ -10,8 +10,8 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenCL::OpenCL)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES C_STANDARD 11
-        C_STANDARD_REQUIRED ON
-        C_EXTENSIONS OFF)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE CL_TARGET_OPENCL_VERSION=100)
