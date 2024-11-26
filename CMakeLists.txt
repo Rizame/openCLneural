@@ -6,7 +6,10 @@ project(HelloOpenCL LANGUAGES CXX)
 
 find_package(OpenCL REQUIRED)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp
+        inc/input_parse.h
+        src/input_parse.cpp
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenCL::OpenCL)
 
@@ -15,3 +18,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20
         CXX_EXTENSIONS OFF)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE CL_TARGET_OPENCL_VERSION=100)
+# Use libc++ when compiling with Clang
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
