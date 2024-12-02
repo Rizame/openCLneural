@@ -3,6 +3,13 @@
 //
 #include "../inc/input_parse.h"
 
+uint32_t swap_bytes(uint32_t value) {
+    return ((value >> 24) & 0x000000FF) |
+           ((value >> 8) & 0x0000FF00) |
+           ((value << 8) & 0x00FF0000) |
+           ((value << 24) & 0xFF000000);
+}
+
 int32_t read_int(std::ifstream &file) {
     uint8_t bytes[4];
     file.read(reinterpret_cast<char*>(bytes), 4);
@@ -57,8 +64,8 @@ uint8_t* load_IDX1_to_array(const std::string &filename, size_t &num_labels) {
     file.read(reinterpret_cast<char *>(&num_labels), 4);
 
     // Convert from big-endian to host-endian
-    magic_number = __builtin_bswap32(magic_number);
-    num_labels = __builtin_bswap32(num_labels);
+    magic_number = swap_bytes(magic_number);
+    num_labels = swap_bytes(num_labels);
 
     if (magic_number != 0x00000801) {
         throw std::runtime_error("Invalid magic number in IDX1 file");
