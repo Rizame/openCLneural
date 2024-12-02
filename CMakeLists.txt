@@ -2,11 +2,16 @@ cmake_minimum_required(VERSION 3.22) # 3.1 << C_STANDARD 11
 
 set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
-project(HelloOpenCL LANGUAGES CXX)
+project(NeuralDigitRecon LANGUAGES CXX)
 
 find_package(OpenCL REQUIRED)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp
+        inc/Layer.h
+        inc/Neuron.h
+        inc/NeuralNetwork.h
+        src/NeuralNetwork.cpp
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenCL::OpenCL)
 
