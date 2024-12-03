@@ -1,6 +1,6 @@
 #include "../inc/NeuralNetwork.h"
 
-std::string NeuralNetwork::read_kernel_file(const std::string &filename){
+std::string NeuralNetwork::read_kernel_file(const std::string &filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open kernel file: " << filename << std::endl;
@@ -12,7 +12,7 @@ std::string NeuralNetwork::read_kernel_file(const std::string &filename){
     return buf.str();
 }
 
-void NeuralNetwork::initialize_weights_and_biases(){
+void NeuralNetwork::initialize_weights_and_biases() {
 // Step 1: Ensure OpenCL is initialized
     if (!context_ || !commandQueue_) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
@@ -27,11 +27,11 @@ void NeuralNetwork::initialize_weights_and_biases(){
     int totalBiases = 0;
 
     // Calculate the number of weights and biases based on layer topology
-    for (size_t i = 0; i < layers.size()-1; ++i) {
+    for (size_t i = 0; i < layers.size() - 1; ++i) {
         totalWeights += layers[i].neurons.size() * layers[i + 1].weights.size();
         totalBiases += layers[i].biases.size();
     }
-    totalBiases += layers[layers.size()-1].biases.size();
+    totalBiases += layers[layers.size() - 1].biases.size();
 
 
 
@@ -52,13 +52,15 @@ void NeuralNetwork::initialize_weights_and_biases(){
     std::vector<float> zeros(totalWeights + totalBiases, 0.0f);
 
     // Write zero-initialized data into buffers
-    err = clEnqueueWriteBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float), zeros.data(), 0, nullptr, nullptr);
+    err = clEnqueueWriteBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float), zeros.data(), 0,
+                               nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to write weights buffer." << std::endl;
         return;
     }
 
-    err = clEnqueueWriteBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(float), zeros.data() + totalWeights, 0, nullptr, nullptr);
+    err = clEnqueueWriteBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(float),
+                               zeros.data() + totalWeights, 0, nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to write biases buffer." << std::endl;
         return;
@@ -67,7 +69,7 @@ void NeuralNetwork::initialize_weights_and_biases(){
     // Step 4: Load the OpenCL kernel code and compile it
     const std::string kernelCode = read_kernel_file("src/NeuralNetworkKernel.cl"); // Read the kernel code from the file
 
-    const char* kernelSource = kernelCode.c_str();
+    const char *kernelSource = kernelCode.c_str();
     cl_program program = clCreateProgramWithSource(context_, 1, &kernelSource, nullptr, &err);
     if (err != CL_SUCCESS || !program) {
         std::cerr << "Failed to create OpenCL program." << std::endl;
@@ -121,13 +123,15 @@ void NeuralNetwork::initialize_weights_and_biases(){
     std::vector<double> initializedWeights(totalWeights);
     std::vector<double> initializedBiases(totalBiases);
 
-    err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float), initializedWeights.data(), 0, nullptr, nullptr);
+    err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float),
+                              initializedWeights.data(), 0, nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to read weights buffer." << std::endl;
         return;
     }
 
-    err = clEnqueueReadBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(float), initializedBiases.data(), 0, nullptr, nullptr);
+    err = clEnqueueReadBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(float),
+                              initializedBiases.data(), 0, nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to read biases buffer." << std::endl;
         return;
@@ -157,11 +161,13 @@ void NeuralNetwork::initialize_weights_and_biases(){
 }
 
 
-NeuralNetwork::NeuralNetwork(const std::vector<int>& topology): platform_(nullptr), device_(nullptr), context_(nullptr), commandQueue_(nullptr) { // 784, 256, 10
+NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullptr), device_(nullptr),
+                                                                 context_(nullptr),
+                                                                 commandQueue_(nullptr) { // 784, 256, 10
     // Initialize the layers and neurons based on the topology
     openCL_init();
     for (size_t i = 0; i < topology.size(); ++i) {
-        layers.push_back(Layer(topology[i], (i == 0 ? 0 : topology[i - 1]),i));
+        layers.push_back(Layer(topology[i], (i == 0 ? 0 : topology[i - 1]), i));
     }
 
 
@@ -170,14 +176,33 @@ NeuralNetwork::NeuralNetwork(const std::vector<int>& topology): platform_(nullpt
 }
 
 void NeuralNetwork::feedForward(const std::vector<double> &input) {
+    if (input.size() != layers[0].neurons.size())
+        throw std::invalid_argument("Input size does not match the number of neurons in the input layer");
+    for (size_t i = 0; i < input.size(); ++i) {
+        layers[0].neurons[i].value = input[i];
+    }
+    for (size_t i = 1; i > layers.size(); i++) {
+        Layer &prevLayer = layers[i - 1];
+        Layer &currentLayer = layers[i];
 
+        for (int j = 0; j < currentLayer.neurons.size(); ++j) {
+            double sum = 0.0;
+
+            for (size_t k = 0; k < prevLayer.neurons.size(); ++k) {
+                sum += prevLayer.neurons[k].value * currentLayer.weights[j][k];
+            }
+            sum += currentLayer.biases[j];
+            //activation func
+        }
+    }
 }
 
 void NeuralNetwork::backPropagate(const std::vector<double> &target) {
 
 }
 
-void NeuralNetwork::train(const std::vector<std::vector<double>> &inputs, const std::vector<std::vector<double>> &targets,
+void
+NeuralNetwork::train(const std::vector<std::vector<double>> &inputs, const std::vector<std::vector<double>> &targets,
                      int epochs, double learningRate) {
 
 }
