@@ -75,5 +75,6 @@ uint8_t* load_IDX1_to_array(const std::string &filename, size_t &num_labels) {
         throw std::runtime_error("Error reading labels from file");
     }
 
+
     return labels;
 }
