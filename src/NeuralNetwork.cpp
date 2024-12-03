@@ -136,6 +136,7 @@ void NeuralNetwork::initialize_weights_and_biases(){
 
     // Step 9: Update the neural network layers with the initialized weights and biases
     size_t weightIndex = 0;
+    size_t biasIndex = 0;
 
 
     for (size_t i = 1; i < layers.size(); ++i) {
@@ -143,6 +144,7 @@ void NeuralNetwork::initialize_weights_and_biases(){
             for (size_t k = 0; k < layers[i].weights[j].size(); ++k) {
                 layers[i].weights[j][k] = initializedWeights[weightIndex++];
             }
+            layers[i].biasWeights[j] = initializedBiases[biasIndex++];
         }
     }
 

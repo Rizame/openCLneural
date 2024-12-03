@@ -21,15 +21,23 @@ __kernel void initialize_weights_and_biases(
         weights[id] = sin((id + seed) * 12.9898);  // Random number between -1 and 1 using sine
         weights[id] = fmod(weights[id], 1.0);  // Normalize between 0 and 1
 
-        //weights[id] = (weights[id] - 0.5) * 2.0;  // Adjust to [-1, 1]
-        //weights[id] = weights[id] * initRange;  // Scale according to He initialization
         if(weights[id] < -1){
             weights[id] = -1.0;
         }
         if(weights[id] > 1){
             weights[id] = 1.0;
         }
+    }
+    if (id < num_biases){
+        biases[id] = sin((id + seed) * 11.74932);  // Random number between -1 and 1 using sine
+        biases[id] = fmod(biases[id], 1.0);  // Normalize between 0 and 1
 
+        if(biases[id] < -1){
+            biases[id] = -1.0;
+        }
+        if(biases[id] > 1){
+            biases[id] = 1.0;
+        }
     }
 
     // Initialize biases to 0
