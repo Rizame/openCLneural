@@ -23,8 +23,8 @@ void NeuralNetwork::initialize_weights_and_biases() {
     cl_int err;
 
     // Total number of weights and biases (weights for each layer and biases)
-    size_t totalWeights = 0;
-    size_t totalBiases = 0;
+    int totalWeights = 0;
+    int totalBiases = 0;
 
     // Calculate the number of weights and biases based on layer topology
     for (size_t i = 0; i < layers.size() - 1; ++i) {
@@ -67,7 +67,7 @@ void NeuralNetwork::initialize_weights_and_biases() {
     }
 
     // Step 4: Load the OpenCL kernel code and compile it
-    const std::string kernelCode = read_kernel_file("NeuralNetworkKernel.cl"); // Read the kernel code from the file
+    const std::string kernelCode = read_kernel_file("src/NeuralNetworkKernel.cl"); // Read the kernel code from the file
 
     const char *kernelSource = kernelCode.c_str();
     cl_program program = clCreateProgramWithSource(context_, 1, &kernelSource, nullptr, &err);
@@ -79,6 +79,14 @@ void NeuralNetwork::initialize_weights_and_biases() {
     err = clBuildProgram(program, 1, &device_, nullptr, nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to build OpenCL program." << std::endl;
+        size_t logSize;
+        clGetProgramBuildInfo(program, device_, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logSize);
+
+        char* log = new char[logSize];
+        clGetProgramBuildInfo(program, device_, CL_PROGRAM_BUILD_LOG, logSize, log, nullptr);
+
+        std::cerr << "Build log:\n" << log << std::endl;
+        delete[] log;
         return;
     }
 
@@ -88,17 +96,20 @@ void NeuralNetwork::initialize_weights_and_biases() {
         std::cerr << "Failed to create OpenCL kernel." << std::endl;
         return;
     }
+    auto seed = static_cast<unsigned int>(std::time(0));
 
     // Step 6: Set kernel arguments
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &weightsBuffer);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &biasesBuffer);
-    err |= clSetKernelArg(kernel, 2, sizeof(size_t), &totalWeights);
-    err |= clSetKernelArg(kernel, 3, sizeof(size_t), &totalBiases);
+    err |= clSetKernelArg(kernel, 2, sizeof(int), &totalWeights);
+    err |= clSetKernelArg(kernel, 3, sizeof(int), &totalBiases);
+    err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &seed);
 
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to set OpenCL kernel arguments." << std::endl;
         return;
     }
+
 
     // Step 7: Launch the kernel
     size_t globalWorkSize = totalWeights + totalBiases;
@@ -109,8 +120,8 @@ void NeuralNetwork::initialize_weights_and_biases() {
     }
 
     // Step 8: Read the data back from the buffers (weights and biases)
-    std::vector<float> initializedWeights(totalWeights);
-    std::vector<float> initializedBiases(totalBiases);
+    std::vector<double> initializedWeights(totalWeights);
+    std::vector<double> initializedBiases(totalBiases);
 
     err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float),
                               initializedWeights.data(), 0, nullptr, nullptr);
@@ -125,20 +136,17 @@ void NeuralNetwork::initialize_weights_and_biases() {
         std::cerr << "Failed to read biases buffer." << std::endl;
         return;
     }
+    clFinish(commandQueue_);
 
     // Step 9: Update the neural network layers with the initialized weights and biases
     size_t weightIndex = 0;
-    size_t biasIndex = 0;
 
-    for (size_t i = 0; i < layers.size(); ++i) {
+
+    for (size_t i = 1; i < layers.size(); ++i) {
         for (size_t j = 0; j < layers[i].neurons.size(); ++j) {
-            // Initialize weights
             for (size_t k = 0; k < layers[i].weights[j].size(); ++k) {
                 layers[i].weights[j][k] = initializedWeights[weightIndex++];
             }
-
-            // Initialize biases
-            layers[i].biases[j] = initializedBiases[biasIndex++];
         }
     }
 

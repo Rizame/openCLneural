@@ -16,8 +16,10 @@
 
 
 int main() {
+    //std::vector<std::vector<int>> images = load_IDX3("trainData/train-images.idx3-ubyte");
+    //std::vector<int> labels = load_IDX1_to_array("trainData/train-labels.idx1-ubyte", images.size());
     std::vector<int> topology{784,256,10};
-    NeuralNetwork nn{topology};
+    NeuralNetwork NN {topology};
 
 
     return 0; // Success
