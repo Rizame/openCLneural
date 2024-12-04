@@ -4,10 +4,12 @@
 #define NEURALDIGITRECON_NEURON_H
 
 
+#pragma pack(push, 1)
 struct Neuron {
     double value;
     double gradient;
 };
+#pragma pack(pop)
 
 
 #endif //NEURALDIGITRECON_NEURON_H
