@@ -13,7 +13,7 @@ struct Layer {
         neurons.resize(numNeurons); // Resize the neurons vector
         weights.resize(i == 0 ? 0 : numNeurons*numInputsPerNeuron, 0.0);
         biasWeights.resize(i == 0 ? 0 : numNeurons);
-        biases.resize(i == 0 ? 0 : numNeurons); // Resize the biases for each neuron
+        biases.resize(i == 0 ? 0 : numNeurons, 1.0); // Resize the biases for each neuron
 
     }
 };

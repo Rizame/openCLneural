@@ -35,13 +35,13 @@ void NeuralNetwork::initialize_weights_and_biases() {
 
 
     // Buffers to store weights and biases
-    cl_mem weightsBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalWeights * sizeof(float), nullptr, &err);
+    cl_mem weightsBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalWeights * sizeof(double ), nullptr, &err);
     if (err != CL_SUCCESS || !weightsBuffer) {
         std::cerr << "Failed to create OpenCL buffer for weights." << std::endl;
         return;
     }
 
-    cl_mem biasesBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalBiases * sizeof(float), nullptr, &err);
+    cl_mem biasesBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalBiases * sizeof(double ), nullptr, &err);
     if (err != CL_SUCCESS || !biasesBuffer) {
         std::cerr << "Failed to create OpenCL buffer for biases." << std::endl;
         return;
@@ -51,14 +51,14 @@ void NeuralNetwork::initialize_weights_and_biases() {
     std::vector<float> zeros(totalWeights + totalBiases, 0.0f);
 
     // Write zero-initialized data into buffers
-    err = clEnqueueWriteBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(float), zeros.data(), 0,
+    err = clEnqueueWriteBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(double ), zeros.data(), 0,
                                nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to write weights buffer." << std::endl;
         return;
     }
 
-    err = clEnqueueWriteBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(float),
+    err = clEnqueueWriteBuffer(commandQueue_, biasesBuffer, CL_TRUE, 0, totalBiases * sizeof(double ),
                                zeros.data() + totalWeights, 0, nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to write biases buffer." << std::endl;
@@ -178,27 +178,52 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullp
     initialize_weights_and_biases();
 }
 
-//void NeuralNetwork::feedForward(const std::vector<double> &input) {
-//    if (input.size() != layers[0].neurons.size())
-//        throw std::invalid_argument("Input size does not match the number of neurons in the input layer");
-//    for (size_t i = 0; i < input.size(); ++i) {
-//        layers[0].neurons[i].value = input[i];
-//    }
-//    for (size_t i = 1; i > layers.size(); i++) {
-//        Layer &prevLayer = layers[i - 1];
-//        Layer &currentLayer = layers[i];
-//
-//        for (int j = 0; j < currentLayer.neurons.size(); ++j) {
-//            double sum = 0.0;
-//
-//            for (size_t k = 0; k < prevLayer.neurons.size(); ++k) {
-//                sum += prevLayer.neurons[k].value * currentLayer.weights[j][k];
-//            }
-//            sum += currentLayer.biases[j];
-//            //activation func
-//        }
-//    }
-//}
+void NeuralNetwork::feedForward(const std::vector<double> &input) {
+    cl_int err;
+
+
+    for(int i = 1; i < layers.size();i++){
+        std::vector<Neuron>outputNeurons{layers[i].neurons.size()};
+
+        cl_mem output = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                        layers[i].neurons.size() * sizeof(Neuron), layers[i].neurons, &err);
+
+        cl_mem neurons = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       layers[i].neurons.size() * sizeof(Neuron), layers[i].neurons, &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating buffer." << std::endl;
+        }
+        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &neurons);
+
+
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error setting kernel argument." << std::endl;
+        }
+        size_t globalWorkSize = layers[i].neurons.size();
+
+        err = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr,
+                                     &globalWorkSize, nullptr, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
+            return;
+        }
+
+        err = clEnqueueReadBuffer(commandQueue_, output, CL_TRUE, 0,  layers[i].neurons.size() * sizeof(Neuron),
+                                  outputNeurons.data(), 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to read weights buffer." << std::endl;
+            return;
+        }
+        for(int k = 0; k < layers[i].neurons.size();k++){
+            layers[i].neurons[k].value = outputNeurons[k].value;
+        }
+        clReleaseMemObject(output);
+        clReleaseMemObject(neurons);
+
+    }
+
+}
 
 void NeuralNetwork::backPropagate(const std::vector<double> &target) {
 
