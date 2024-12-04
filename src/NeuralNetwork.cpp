@@ -27,11 +27,10 @@ void NeuralNetwork::initialize_weights_and_biases() {
     int totalBiases = 0;
 
     // Calculate the number of weights and biases based on layer topology
-    for (size_t i = 0; i < layers.size() - 1; ++i) {
-        totalWeights += layers[i].neurons.size() * layers[i + 1].weights.size();
+    for (size_t i = 0; i < layers.size(); ++i) {
+        totalWeights += layers[i].weights.size();
         totalBiases += layers[i].biases.size();
     }
-    totalBiases += layers[layers.size() - 1].biases.size();
 
 
 
@@ -143,14 +142,18 @@ void NeuralNetwork::initialize_weights_and_biases() {
     size_t biasIndex = 0;
 
 
+
     for (size_t i = 1; i < layers.size(); ++i) {
         for (size_t j = 0; j < layers[i].neurons.size(); ++j) {
-            for (size_t k = 0; k < layers[i].weights[j].size(); ++k) {
-                layers[i].weights[j][k] = initializedWeights[weightIndex++];
+            for (size_t k = 0; k < layers[i-1].neurons.size(); ++k) {
+                size_t flatIndex = j * layers[i-1].neurons.size() + k;
+                layers[i].weights[flatIndex] = initializedWeights[weightIndex++];
             }
             layers[i].biasWeights[j] = initializedBiases[biasIndex++];
         }
     }
+
+    //layers[i].weights[j][k] = initializedWeights[weightIndex++];
 
     // Step 10: Cleanup OpenCL resources
     clReleaseMemObject(weightsBuffer);
@@ -175,27 +178,27 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullp
     initialize_weights_and_biases();
 }
 
-void NeuralNetwork::feedForward(const std::vector<double> &input) {
-    if (input.size() != layers[0].neurons.size())
-        throw std::invalid_argument("Input size does not match the number of neurons in the input layer");
-    for (size_t i = 0; i < input.size(); ++i) {
-        layers[0].neurons[i].value = input[i];
-    }
-    for (size_t i = 1; i > layers.size(); i++) {
-        Layer &prevLayer = layers[i - 1];
-        Layer &currentLayer = layers[i];
-
-        for (int j = 0; j < currentLayer.neurons.size(); ++j) {
-            double sum = 0.0;
-
-            for (size_t k = 0; k < prevLayer.neurons.size(); ++k) {
-                sum += prevLayer.neurons[k].value * currentLayer.weights[j][k];
-            }
-            sum += currentLayer.biases[j];
-            //activation func
-        }
-    }
-}
+//void NeuralNetwork::feedForward(const std::vector<double> &input) {
+//    if (input.size() != layers[0].neurons.size())
+//        throw std::invalid_argument("Input size does not match the number of neurons in the input layer");
+//    for (size_t i = 0; i < input.size(); ++i) {
+//        layers[0].neurons[i].value = input[i];
+//    }
+//    for (size_t i = 1; i > layers.size(); i++) {
+//        Layer &prevLayer = layers[i - 1];
+//        Layer &currentLayer = layers[i];
+//
+//        for (int j = 0; j < currentLayer.neurons.size(); ++j) {
+//            double sum = 0.0;
+//
+//            for (size_t k = 0; k < prevLayer.neurons.size(); ++k) {
+//                sum += prevLayer.neurons[k].value * currentLayer.weights[j][k];
+//            }
+//            sum += currentLayer.biases[j];
+//            //activation func
+//        }
+//    }
+//}
 
 void NeuralNetwork::backPropagate(const std::vector<double> &target) {
 
