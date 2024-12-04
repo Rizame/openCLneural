@@ -48,7 +48,7 @@ void NeuralNetwork::initialize_weights_and_biases() {
     }
 
     // Step 3: Prepare data for kernel execution (initialize to zero first)
-    std::vector<float> zeros(totalWeights + totalBiases, 0.0f);
+    std::vector<double> zeros(totalWeights + totalBiases, 0.0);
 
     // Write zero-initialized data into buffers
     err = clEnqueueWriteBuffer(commandQueue_, weightsBuffer, CL_TRUE, 0, totalWeights * sizeof(double), zeros.data(), 0,
@@ -177,7 +177,7 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullp
     initialize_weights_and_biases();
 }
 
-void NeuralNetwork::feedForward(const std::vector<double> &input) {
+void NeuralNetwork::feedForward(std::vector<double> &input) {
     if (!context_ || !commandQueue_) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
@@ -208,43 +208,68 @@ void NeuralNetwork::feedForward(const std::vector<double> &input) {
     }
 
     // Step 5: Create the kernel for weight and bias initialization
-    cl_kernel kernel = clCreateKernel(program, "feedForward", &err);
+    cl_kernel kernel = clCreateKernel(program, "feed_forward_cl", &err);
     if (err != CL_SUCCESS || !kernel) {
         std::cerr << "Failed to create OpenCL kernel." << std::endl;
         return;
     }
 
-    for(int i = 1; i < layers.size();i++){
+    for(int i = 0; i < layers.size();i++){
         int neuronsSize = static_cast<int>(layers[i].neurons.size());
 
         std::vector<Neuron>outputNeurons{layers[i].neurons.size(), {0.0,0.0}};
 
         cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                            neuronsSize * sizeof(Neuron), outputNeurons.data(), &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating output buffer." << std::endl;
+            return;
+        }
+
+        cl_mem inputBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            input.size() * sizeof(double), input.data(), &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating input buffer." << std::endl;
+            return;
+        }
 
         cl_mem neuronsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                             neuronsSize * sizeof(Neuron), layers[i].neurons.data(), &err);
-
-        cl_mem weightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        layers[i].weights.size() * sizeof(double), layers[i].weights.data(), &err);
-
-        cl_mem biasweightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            layers[i].biasWeights.size() * sizeof(double), layers[i].biasWeights.data(), &err);
-
-        cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            layers[i].biases.size() * sizeof(double), layers[i].biases.data(), &err);
-
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating buffer." << std::endl;
+            return;
         }
+
+        cl_mem weightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                        i != 0 ? layers[i].weights.size() : 1 * sizeof(double), layers[i].weights.data(), &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating weights buffer." << std::endl;
+        }
+
+        cl_mem biasweightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                                i != 0 ? layers[i].biasWeights.size() : 1 * sizeof(double), layers[i].biasWeights.data(), &err);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating bias weights buffer." << std::endl;
+        }
+        cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                         i != 0 ? layers[i].biases.size() : 1 * sizeof(double), layers[i].biases.data(), &err);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating bias buffer." << std::endl;
+            return;
+        }
+        //i == 0 ? 0 : topology[i - 1]), i)
+        int prevLayerNeuron = i == 0 ? 0 : static_cast<int>(layers[i-1].neurons.size());
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &neuronsBuff);
         err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &BiasBuff);
         err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &biasweightsBuff);
-        err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &weightsBuff);
-        err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &outputBuff);
-        err |= clSetKernelArg(kernel, 5, sizeof(int), &neuronsSize);
-        err |= clSetKernelArg(kernel, 6, sizeof(int), &i);
+        err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &inputBuff);
+        err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &weightsBuff);
+        err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &outputBuff);
+        err |= clSetKernelArg(kernel, 6, sizeof(int), &prevLayerNeuron);
+        err |= clSetKernelArg(kernel, 7, sizeof(int), &i);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error setting kernel argument." << std::endl;
@@ -260,6 +285,9 @@ void NeuralNetwork::feedForward(const std::vector<double> &input) {
 
         err = clEnqueueReadBuffer(commandQueue_, outputBuff, CL_TRUE, 0,  neuronsSize * sizeof(Neuron),
                                   outputNeurons.data(), 0, nullptr, nullptr);
+
+        clFinish(commandQueue_);
+
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to read weights buffer." << std::endl;
             return;
@@ -270,6 +298,7 @@ void NeuralNetwork::feedForward(const std::vector<double> &input) {
 
         clReleaseMemObject(outputBuff);
         clReleaseMemObject(neuronsBuff);
+        clReleaseMemObject(inputBuff);
         clReleaseMemObject(weightsBuff);
         clReleaseMemObject(biasweightsBuff);
         clReleaseMemObject(BiasBuff);

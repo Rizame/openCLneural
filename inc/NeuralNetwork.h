@@ -20,7 +20,7 @@ public:
     NeuralNetwork(const std::vector<int>& topology);
     void initialize_weights_and_biases();
     bool openCL_init();
-    void feedForward(const std::vector<double>& input);
+    void feedForward(std::vector<double>& input);
     void backPropagate(const std::vector<double>& target);
     void train(const std::vector<std::vector<double>>& inputs,
                const std::vector<std::vector<double>>& targets,

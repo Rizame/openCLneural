@@ -11,9 +11,9 @@ struct Layer {
     std::vector<double> biasWeights;
     Layer(int numNeurons, int numInputsPerNeuron, int i) {
         neurons.resize(numNeurons); // Resize the neurons vector
-        weights.resize(i == 0 ? 0 : numNeurons*numInputsPerNeuron, 0.0);
-        biasWeights.resize(i == 0 ? 0 : numNeurons);
-        biases.resize(i == 0 ? 0 : numNeurons, 1.0); // Resize the biases for each neuron
+        weights.resize(i == 0 ? 1 : numNeurons*numInputsPerNeuron, 0.0);
+        biasWeights.resize(i == 0 ? 1 : numNeurons);
+        biases.resize(i == 0 ? 1 : numNeurons, 1.0); // Resize the biases for each neuron
 
     }
 };

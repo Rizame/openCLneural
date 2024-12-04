@@ -58,7 +58,7 @@ std::vector<int> load_IDX1_to_array(const std::string &filename, size_t num_labe
 
 
 
-std::vector<std::vector<int>> load_IDX3(const std::string &filename) {
+std::vector<std::vector<double>> load_IDX3(const std::string &filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Unable to open file: " + filename);
@@ -79,7 +79,7 @@ std::vector<std::vector<int>> load_IDX3(const std::string &filename) {
     std::cout << "Image Size: " << num_rows << "x" << num_cols << "\n";
 
     // Allocate storage for images as ints
-    std::vector<std::vector<int>> images(num_images, std::vector<int>(num_rows * num_cols));
+    std::vector<std::vector<double>> images(num_images, std::vector<double>(num_rows * num_cols));
 
     // Read image data and convert uint8_t to int
     for (int i = 0; i < num_images; ++i) {
@@ -88,7 +88,8 @@ std::vector<std::vector<int>> load_IDX3(const std::string &filename) {
             std::vector<uint8_t> row(num_cols);
             file.read(reinterpret_cast<char*>(row.data()), num_cols);
             for (int c = 0; c < num_cols; ++c) {
-                images[i][r * num_cols + c] = static_cast<int>(row[c]);
+                int data = static_cast<int>(row[c]);
+                images[i][r * num_cols + c] = static_cast<double>(data / 255.0);
             }
         }
     }
