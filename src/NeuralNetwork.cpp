@@ -179,37 +179,46 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullp
 }
 
 void NeuralNetwork::feedForward(const std::vector<double> &input) {
-    cl_int err;
 
 
     for(int i = 1; i < layers.size();i++){
-        std::vector<Neuron>outputNeurons{layers[i].neurons.size()};
+        std::vector<Neuron>outputNeurons{layers[i].neurons.size(), {0.0,0.0}};
 
-        cl_mem output = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        layers[i].neurons.size() * sizeof(Neuron), layers[i].neurons, &err);
+        cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                        layers[i].neurons.size() * sizeof(Neuron), outputNeurons.data(), &err);
 
-        cl_mem neurons = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       layers[i].neurons.size() * sizeof(Neuron), layers[i].neurons, &err);
+        cl_mem neuronsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       layers[i].neurons.size() * sizeof(Neuron), layers[i].neurons.data(), &err);
+
+        cl_mem weightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                        layers[i].weights.size() * sizeof(double), layers[i].weights.data(), &err);
+
+        cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            layers[i].biases.size() * sizeof(double), layers[i].biases.data(), &err);
+
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating buffer." << std::endl;
         }
-        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &neurons);
-
-
+        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &neuronsBuff);
+        err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &BiasBuff);
+        err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &weightsBuff);
+        err = clSetKernelArg(kernel, 3, sizeof(cl_mem), &outputBuff);
+        err = clSetKernelArg(kernel, 4, sizeof(int), layers[i].neurons.size());
+        err = clSetKernelArg(kernel, 5, sizeof(int), i);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error setting kernel argument." << std::endl;
         }
         size_t globalWorkSize = layers[i].neurons.size();
 
-        err = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr,
+        err = clEnqueueNDRangeKernel(commandQueue_, kernel, 1, nullptr,
                                      &globalWorkSize, nullptr, 0, nullptr, nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
         }
 
-        err = clEnqueueReadBuffer(commandQueue_, output, CL_TRUE, 0,  layers[i].neurons.size() * sizeof(Neuron),
+        err = clEnqueueReadBuffer(commandQueue_, outputBuff, CL_TRUE, 0,  layers[i].neurons.size() * sizeof(Neuron),
                                   outputNeurons.data(), 0, nullptr, nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to read weights buffer." << std::endl;
@@ -218,8 +227,8 @@ void NeuralNetwork::feedForward(const std::vector<double> &input) {
         for(int k = 0; k < layers[i].neurons.size();k++){
             layers[i].neurons[k].value = outputNeurons[k].value;
         }
-        clReleaseMemObject(output);
-        clReleaseMemObject(neurons);
+        clReleaseMemObject(outputBuff);
+        clReleaseMemObject(neuronsBuff);
 
     }
 
