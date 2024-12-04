@@ -6,6 +6,7 @@ struct Neuron {
 __kernel void feed_forward_cl(
         __global const Neuron* neurons, // current layer neurons
         __global const double* biases,  // biases for the current layer
+        __global const double* biasWeights,
         __global const double* weights, // weights between current and previous layer
         __global double* output,        // output to store calculated values
         int num_neurons,                // neurons in previous layer
@@ -31,7 +32,7 @@ __kernel void feed_forward_cl(
     }
 
     // Add bias
-    sum += biases[id];
+    sum += biases[id] * biasWeights[id];
 
     // Apply activation function (ReLU in this example)
     output[id] = fmax(sum, 0.0); // ReLU activation
