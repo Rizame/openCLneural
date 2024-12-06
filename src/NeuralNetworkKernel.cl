@@ -1,8 +1,10 @@
-double rand(ulong* c)
-{
-     ulong random_number = (19073486328125 * 19073486328125 + *c) % (281474976710656);
-      *c = (random_number / 281474976710656.0);
-return (double)random_number / DBL_MAX;
+double rand(ulong* c) {
+    constexpr uint64_t MODULUS = 281474976710656ULL; // 2^48
+    constexpr uint64_t MULTIPLIER = 19073486328125ULL;
+
+    // Update the seed
+    *c = (*c * MULTIPLIER + 1) % MODULUS;
+    return static_cast<double>(*c) / MODULUS;
 }
 
 __kernel void initialize_weights_and_biases(
@@ -19,7 +21,7 @@ __kernel void initialize_weights_and_biases(
 
 
         weights[id] = rand(&seed);  // Random number between -1 and 1 using sine 112 instead of 12
-        //weights[id] = fmod(weights[id], (double)1.0);  // Normalize between 0 and 1
+        weights[id] = fmod(weights[id], (double)1.0);  // Normalize between 0 and 1
 
         if(id > 203260) printf("weight value for layer 3: %f\n", weights[id]);
 
