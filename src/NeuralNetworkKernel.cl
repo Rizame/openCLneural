@@ -1,10 +1,10 @@
 double rand(ulong* c) {
-    constexpr uint64_t MODULUS = 281474976710656ULL; // 2^48
-    constexpr uint64_t MULTIPLIER = 19073486328125ULL;
+     ulong MODULUS = 281474976710656ULL; // 2^48
+     ulong MULTIPLIER = 19073486328125ULL;
 
     // Update the seed
     *c = (*c * MULTIPLIER + 1) % MODULUS;
-    return static_cast<double>(*c) / MODULUS;
+    return (double)(*c) / (double)MODULUS;
 }
 
 __kernel void initialize_weights_and_biases(
@@ -18,7 +18,6 @@ __kernel void initialize_weights_and_biases(
     if(id == 0) printf("total weights: %d\n", num_weights);
 
     if (id < num_weights) {
-
 
         weights[id] = rand(&seed);  // Random number between -1 and 1 using sine 112 instead of 12
         weights[id] = fmod(weights[id], (double)1.0);  // Normalize between 0 and 1
