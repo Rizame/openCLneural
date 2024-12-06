@@ -95,14 +95,14 @@ void NeuralNetwork::initialize_weights_and_biases() {
         std::cerr << "Failed to create OpenCL kernel." << std::endl;
         return;
     }
-    auto seed = static_cast<unsigned int>(std::time(0));
+    auto seed = static_cast<uint64_t >(std::time(0));
 
     // Step 6: Set kernel arguments
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &weightsBuffer);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &biasesBuffer);
     err |= clSetKernelArg(kernel, 2, sizeof(int), &totalWeights);
     err |= clSetKernelArg(kernel, 3, sizeof(int), &totalBiases);
-    err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &seed);
+    err |= clSetKernelArg(kernel, 4, sizeof(double), &seed);
 
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to set OpenCL kernel arguments." << std::endl;
