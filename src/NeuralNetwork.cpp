@@ -25,12 +25,24 @@ void NeuralNetwork::initialize_weights_and_biases() {
     // Total number of weights and biases (weights for each layer and biases)
     int totalWeights = 0;
     int totalBiases = 0;
-
-    // Calculate the number of weights and biases based on layer topology
     for (size_t i = 0; i < layers.size(); ++i) {
         totalWeights += layers[i].weights.size();
         totalBiases += layers[i].biases.size();
     }
+
+    std::vector<double> seeds{};
+    seeds.resize(totalWeights+totalBiases,0.0);
+
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+    std::default_random_engine generator(seed);
+    std::uniform_int_distribution<long> distribution(1, RAND_MAX);
+    for (int i = 0; i < totalWeights+totalBiases; ++i) {
+        double random_number = distribution(generator);
+        random_number /= 100;
+        seeds[i] = random_number;
+    }
+
 
 
 
@@ -38,6 +50,12 @@ void NeuralNetwork::initialize_weights_and_biases() {
     cl_mem weightsBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalWeights * sizeof(double), nullptr, &err);
     if (err != CL_SUCCESS || !weightsBuffer) {
         std::cerr << "Failed to create OpenCL buffer for weights." << std::endl;
+        return;
+    }
+
+    cl_mem seedsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, (totalWeights+totalBiases) * sizeof(double), seeds.data(), &err);
+    if (err != CL_SUCCESS || !seedsBuff) {
+        std::cerr << "Failed to create OpenCL buffer for seeds." << std::endl;
         return;
     }
 
@@ -95,14 +113,14 @@ void NeuralNetwork::initialize_weights_and_biases() {
         std::cerr << "Failed to create OpenCL kernel." << std::endl;
         return;
     }
-    auto seed = static_cast<uint64_t >(std::time(0));
+    //auto seed = static_cast<uint64_t >(std::time(0));
 
     // Step 6: Set kernel arguments
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &weightsBuffer);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &biasesBuffer);
     err |= clSetKernelArg(kernel, 2, sizeof(int), &totalWeights);
     err |= clSetKernelArg(kernel, 3, sizeof(int), &totalBiases);
-    err |= clSetKernelArg(kernel, 4, sizeof(double), &seed);
+    err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &seedsBuff);
 
     if (err != CL_SUCCESS) {
         std::cerr << "Failed to set OpenCL kernel arguments." << std::endl;
@@ -135,6 +153,7 @@ void NeuralNetwork::initialize_weights_and_biases() {
         std::cerr << "Failed to read biases buffer." << std::endl;
         return;
     }
+
     clFinish(commandQueue_);
 
     // Step 9: Update the neural network layers with the initialized weights and biases
@@ -216,9 +235,8 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     }
 
     for(int i = 0; i < layers.size();i++){
-        int neuronsSize = static_cast<int>(layers[i].neurons.size());
 
-        //std::vector<Neuron>outputNeurons{layers[i].neurons.size(), {0.0,0.0}};
+        int neuronsSize = static_cast<int>(layers[i].neurons.size());
 
         cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE,
                                            neuronsSize * sizeof(Neuron), nullptr, &err);
@@ -294,9 +312,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             std::cerr << "Failed to read weights buffer." << std::endl;
             return;
         }
-//        for (int k = 0; k < neuronsSize; k++) {
-//            layers[i].neurons[k].value = outputNeurons[k].value;
-//        }
+
 
         clReleaseMemObject(outputBuff);
         clReleaseMemObject(neuronsBuff);
@@ -305,6 +321,31 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         clReleaseMemObject(biasweightsBuff);
         clReleaseMemObject(BiasBuff);
     }
+    //layers[layers.size()-1].neurons is the last layer of neurons after the weighted sum calculation.
+    auto maxIt = std::max_element(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(),
+                                  [](const Neuron& a, const Neuron& b) {
+                                      return a.value < b.value;
+                                  });
+    double maxValue = maxIt != layers[layers.size()-1].neurons.end() ? maxIt->value : 0.0;
+
+    double exp_sum = std::accumulate(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(), 0.0,
+                                 [maxValue](double total, const Neuron& neuron) {
+                                     return total + exp(neuron.value - maxValue);
+                                 });
+
+    // softmax function activation
+    double guess = 0.0;
+    int guessID = 0;
+    for(int i = 0; i < layers[layers.size()-1].neurons.size();i++){
+        double value = exp(layers[layers.size()-1].neurons[i].value - maxValue)/exp_sum;
+        layers[layers.size()-1].neurons[i].value = value;
+        if (value > guess){
+            guessID = i;
+            guess = value;
+        }
+    }
+
+
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 }
