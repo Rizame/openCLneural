@@ -344,7 +344,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             guess = value;
         }
     }
-
+    std::cout<<"Guessed: "<<guessID<<std::endl;
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
