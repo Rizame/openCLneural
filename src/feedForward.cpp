@@ -32,10 +32,9 @@ __kernel void feed_forward_cl(
 
         if(layer_id != 2) output[id].value = fmax(sum, 0.0); // ReLU activation
 
-        else output[id].value = sum;
-
 
         if (layer_id == 2) {
+            output[id].value = sum;
             printf("sum value layer 3: %f\n", sum);
         }
     }

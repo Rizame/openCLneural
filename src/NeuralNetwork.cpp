@@ -321,6 +321,8 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         clReleaseMemObject(biasweightsBuff);
         clReleaseMemObject(BiasBuff);
     }
+    normalizeBeforeSoft(-2,2);
+
     //layers[layers.size()-1].neurons is the last layer of neurons after the weighted sum calculation.
     auto maxIt = std::max_element(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(),
                                   [](const Neuron& a, const Neuron& b) {
@@ -333,18 +335,18 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
                                      return total + exp(neuron.value - maxValue);
                                  });
 
-    // softmax function activation
-    double guess = 0.0;
-    int guessID = 0;
+
+    double guessVal = 0.0;
     for(int i = 0; i < layers[layers.size()-1].neurons.size();i++){
         double value = exp(layers[layers.size()-1].neurons[i].value - maxValue)/exp_sum;
-        layers[layers.size()-1].neurons[i].value = value;
-        if (value > guess){
-            guessID = i;
-            guess = value;
+        layers[layers.size()-1].neurons[i].value = static_cast<double>(value);
+        if (value > guessVal){
+            guess = i;
+            guessVal = static_cast<double>(value);
         }
     }
-    std::cout<<"Guessed: "<<guessID<<std::endl;
+
+    std::cout<<"Guessed: "<<guess<<std::endl;
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
@@ -415,5 +417,37 @@ bool NeuralNetwork::openCL_init() {
 
     return true;
 }
+void NeuralNetwork::errorCalculation(int target) {
+    avg_error = -log(std::max(layers[layers.size()-1].neurons[target].value, 1e-7));
+
+    std::cout<<"\nThe activated neuron value: "<<layers[layers.size()-1].neurons[target].value<<std::endl;
+    std::cout<<"\nCalculated error: "<<avg_error<<std::endl;
+}
+void NeuralNetwork::normalizeBeforeSoft(double lowerBound, double upperBound) {
+
+    auto maxIt = std::max_element(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(),
+                                  [](const Neuron& a, const Neuron& b) {
+                                      return a.value < b.value;
+                                  });
+    double maxVal = maxIt->value;
+    auto minIt = std::min_element(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(),
+                                  [](const Neuron& a, const Neuron& b) {
+                                      return a.value < b.value;
+                                  });
+    double minVal = minIt->value;
+
+    std::vector<double> normalizedValues;
+
+    for (int i = 0; i < layers[layers.size()-1].neurons.size();i++) {
+        double norm = lowerBound + (upperBound - lowerBound) * (layers[layers.size()-1].neurons[i].value - minVal) / (maxVal - minVal);
+
+        // Clamp values slightly inside the range to avoid strict boundaries
+        if (norm <= lowerBound) norm = lowerBound + 0.01;
+        if (norm >= upperBound) norm = upperBound - 0.01;
+
+        layers[layers.size()-1].neurons[i].value = norm;
+    }
+}
+
 
 
