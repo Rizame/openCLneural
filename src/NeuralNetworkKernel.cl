@@ -28,6 +28,7 @@ __kernel void initialize_weights_and_biases(
         if(weights[id] > 1){
             weights[id] = 1.0;
         }
+
     }
     if (id < num_biases){
         biases[id] = sin((id + seeds[id]) * 112.74932);  // Random number between -1 and 1 using sine

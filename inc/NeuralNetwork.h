@@ -23,7 +23,7 @@ public:
     void initialize_weights_and_biases();
     bool openCL_init();
     void feedForward(std::vector<double>& input);
-    void backPropagate(const std::vector<double>& target);
+    void backPropagate(int target);
     void train(const std::vector<std::vector<double>>& inputs,
                const std::vector<std::vector<double>>& targets,
                int epochs, double learningRate);
