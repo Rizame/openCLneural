@@ -1,0 +1,5 @@
+# ninja log v6
+45	1045	7554597545115995	CMakeFiles/NeuralDigitRecon.dir/src/input_parse.cpp.obj	9835f01267f6ebae
+17	2440	7554597544846686	CMakeFiles/NeuralDigitRecon.dir/main.cpp.obj	ceec683f9db45e7f
+42	2653	7554597545086074	CMakeFiles/NeuralDigitRecon.dir/src/NeuralNetwork.cpp.obj	fbee142e271b62a1
+2654	5023	7554597571200762	NeuralDigitRecon.exe	e7b259c12a1f2c7
