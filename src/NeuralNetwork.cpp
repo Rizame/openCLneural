@@ -31,13 +31,13 @@ void NeuralNetwork::initialize_weights_and_biases() {
     }
 
     std::vector<double> seeds{};
-    seeds.resize(totalWeights+totalBiases,0.0);
+    seeds.resize(totalWeights + totalBiases, 0.0);
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 
     std::default_random_engine generator(seed);
     std::uniform_int_distribution<long> distribution(1, RAND_MAX);
-    for (int i = 0; i < totalWeights+totalBiases; ++i) {
+    for (int i = 0; i < totalWeights + totalBiases; ++i) {
         double random_number = distribution(generator);
         random_number /= 100;
         seeds[i] = random_number;
@@ -53,7 +53,8 @@ void NeuralNetwork::initialize_weights_and_biases() {
         return;
     }
 
-    cl_mem seedsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, (totalWeights+totalBiases) * sizeof(double), seeds.data(), &err);
+    cl_mem seedsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+                                      (totalWeights + totalBiases) * sizeof(double), seeds.data(), &err);
     if (err != CL_SUCCESS || !seedsBuff) {
         std::cerr << "Failed to create OpenCL buffer for seeds." << std::endl;
         return;
@@ -166,7 +167,7 @@ void NeuralNetwork::initialize_weights_and_biases() {
             for (size_t k = 0; k < layers[i - 1].neurons.size(); ++k) {
                 size_t flatIndex = j * layers[i - 1].neurons.size() + k;
                 layers[i].weights[flatIndex] = initializedWeights[weightIndex++];
-                if(initializedWeights[weightIndex] == 0 && weightIndex < 130000) printf("weight:%zu\n",weightIndex);
+                if (initializedWeights[weightIndex] == 0 && weightIndex < 130000) printf("weight:%zu\n", weightIndex);
             }
             layers[i].biasWeights[j] = initializedBiases[biasIndex++];
         }
@@ -188,8 +189,18 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullp
                                                                  commandQueue_(nullptr) { // 784, 256, 10
     // Initialize the layers and neurons based on the topology
     openCL_init();
+
+    auto sigmoid = [](double x) {
+        return 1 / (1 + exp(-x));
+    };
+
+    auto sigmoid_deriv = [=](double x) {
+        double val = sigmoid(x);
+        return val * (1 - val);
+    };
+
     for (size_t i = 0; i < topology.size(); ++i) {
-        layers.push_back(Layer(topology[i], (i == 0 ? 0 : topology[i - 1]), i));
+        layers.emplace_back(topology[i], (i == 0 ? 0 : topology[i - 1]), i, sigmoid, sigmoid_deriv);
     }
 
 
@@ -234,12 +245,11 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         return;
     }
 
-    for(int i = 0; i < layers.size();i++){
+    for (int i = 0; i < layers.size(); i++) {
 
         int neuronsSize = static_cast<int>(layers[i].neurons.size());
 
-        cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE,
-                                           neuronsSize * sizeof(Neuron), nullptr, &err);
+        cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE, neuronsSize * sizeof(Neuron), nullptr, &err);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating output buffer." << std::endl;
@@ -247,40 +257,45 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
 
         cl_mem inputBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            i == 0 ? (input.size() * sizeof(double)) : 1, input.data(), &err);
+                                          i == 0 ? (input.size() * sizeof(double)) : 1, input.data(), &err);
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating input buffer." << std::endl;
             return;
         }
 
         cl_mem neuronsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            i == 0 ? 1 : (layers[i-1].neurons.size() * sizeof(Neuron)), i == 0 ? layers[i].neurons.data() : layers[i-1].neurons.data(), &err);
+                                            i == 0 ? 1 : (layers[i - 1].neurons.size() * sizeof(Neuron)),
+                                            i == 0 ? layers[i].neurons.data() : layers[i - 1].neurons.data(), &err);
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating buffer." << std::endl;
             return;
         }
 
         cl_mem weightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        i != 0 ? layers[i].weights.size() * sizeof(double): 1, layers[i].weights.data(), &err);
+                                            i != 0 ? layers[i].weights.size() * sizeof(double) : 1,
+                                            layers[i].weights.data(), &err);
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating weights buffer." << std::endl;
         }
 
         cl_mem biasweightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                i != 0 ? layers[i].biasWeights.size() : 1 * sizeof(double), layers[i].biasWeights.data(), &err);
+                                                i != 0 ? layers[i].biasWeights.size() * sizeof(double) : 1 *
+                                                                                                         sizeof(double),
+                                                layers[i].biasWeights.data(), &err);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating bias weights buffer." << std::endl;
         }
         cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         i != 0 ? layers[i].biases.size() : 1 * sizeof(double), layers[i].biases.data(), &err);
+                                         i != 0 ? layers[i].biases.size() * sizeof(double) : 1 * sizeof(double),
+                                         layers[i].biases.data(), &err);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating bias buffer." << std::endl;
             return;
         }
 
-        int prevLayerNeuron = i == 0 ? 0 : static_cast<int>(layers[i-1].neurons.size());
+        int prevLayerNeuron = i == 0 ? 0 : static_cast<int>(layers[i - 1].neurons.size());
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &neuronsBuff);
         err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &BiasBuff);
@@ -296,14 +311,13 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
         size_t globalWorkSize = neuronsSize;
 
-        err = clEnqueueNDRangeKernel(commandQueue_, kernel, 1, nullptr,
-                                     &globalWorkSize, nullptr, 0, nullptr, nullptr);
+        err = clEnqueueNDRangeKernel(commandQueue_, kernel, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr, nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
         }
 
-        err = clEnqueueReadBuffer(commandQueue_, outputBuff, CL_TRUE, 0,  neuronsSize * sizeof(Neuron),
+        err = clEnqueueReadBuffer(commandQueue_, outputBuff, CL_TRUE, 0, neuronsSize * sizeof(Neuron),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
 
         clFinish(commandQueue_);
@@ -321,37 +335,74 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         clReleaseMemObject(biasweightsBuff);
         clReleaseMemObject(BiasBuff);
     }
+    //normalizeBeforeSoft(-2, 2);
+
     //layers[layers.size()-1].neurons is the last layer of neurons after the weighted sum calculation.
-    auto maxIt = std::max_element(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(),
-                                  [](const Neuron& a, const Neuron& b) {
-                                      return a.value < b.value;
-                                  });
-    double maxValue = maxIt != layers[layers.size()-1].neurons.end() ? maxIt->value : 0.0;
+//    auto maxIt = std::max_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
+//                                  [](const Neuron &a, const Neuron &b) {
+//                                      return a.value < b.value;
+//                                  });
+//    double maxValue = maxIt != layers[layers.size() - 1].neurons.end() ? maxIt->value : 0.0;
+//
+//    double exp_sum = std::accumulate(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
+//                                     0.0, [maxValue](double total, const Neuron &neuron) {
+//                return total + exp(neuron.value - maxValue);
+//            });
 
-    double exp_sum = std::accumulate(layers[layers.size()-1].neurons.begin(), layers[layers.size()-1].neurons.end(), 0.0,
-                                 [maxValue](double total, const Neuron& neuron) {
-                                     return total + exp(neuron.value - maxValue);
-                                 });
 
-    // softmax function activation
-    double guess = 0.0;
-    int guessID = 0;
-    for(int i = 0; i < layers[layers.size()-1].neurons.size();i++){
-        double value = exp(layers[layers.size()-1].neurons[i].value - maxValue)/exp_sum;
-        layers[layers.size()-1].neurons[i].value = value;
-        if (value > guess){
-            guessID = i;
-            guess = value;
+    double guessVal = 0.0;
+    for (int i = 0; i < layers[layers.size() - 1].neurons.size(); i++) {
+        //double value = exp(layers[layers.size() - 1].neurons[i].value - maxValue) / exp_sum;  SOFTMAX
+        //double value = layers[layers.size()-1].activate(layers[layers.size() - 1].neurons[i].value); // SIGMOID
+        //layers[layers.size() - 1].neurons[i].value = static_cast<double>(value);
+        double value = layers[layers.size() - 1].neurons[i].value;
+        if (value > guessVal) {
+            guess = i;
+            guessVal = static_cast<double>(value);
         }
     }
 
+    std::cout << "Guessed: " << guess << std::endl;
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 }
 
-void NeuralNetwork::backPropagate(const std::vector<double> &target) {
+double error(double value, double target) {
+    return (value - target) * (value - target);
+}
 
+double error_deriv(double value, double target) {
+    return value - target;
+}
+
+void NeuralNetwork::backPropagate(int target) {
+    const size_t lastLayer = layers.size() - 1;
+    double learningRate = 1e-6;
+
+    std::vector<double> prev_delta;
+
+    for (size_t layer = lastLayer; layer >= 1; layer--) {
+        std::vector<double> delta(layers[layer].neurons.size());
+        for (size_t j = 0; j < layers[layer].neurons.size(); j++) {
+            if (layer == lastLayer) {
+                delta[j] = error_deriv(layers[layer].neurons[j].value, target == j);
+            } else {
+                delta[j] = 0;
+                for (size_t l = 0; l < layers[layer + 1].neurons.size(); l++) {
+                    delta[j] += layers[layer + 1].weights[l * layers[layer].neurons.size() + j] * prev_delta[l];
+                }
+            }
+
+            delta[j] *= layers[layer].activate_deriv(layers[layer].neurons[j].value);
+
+            for (size_t i = 0; i < layers[layer - 1].neurons.size(); i++) {
+                layers[layer].weights[j * layers[layer-1].neurons.size() + i] -=
+                        learningRate * layers[layer - 1].neurons[i].value * delta[j];
+            }
+        }
+        prev_delta = std::move(delta);
+    }
 }
 
 void
@@ -415,5 +466,44 @@ bool NeuralNetwork::openCL_init() {
 
     return true;
 }
+
+void NeuralNetwork::errorCalculation(int target) {
+    //avg_error = -log(std::max(layers[layers.size() - 1].neurons[target].value, 1e-7));
+    avg_error = 0;
+    for (size_t i = 0; i < layers.back().neurons.size(); i++) {
+        avg_error += error(layers.back().neurons[target].value, target == i);
+    }
+    avg_error /= (double)layers.back().neurons.size();
+    std::cout << "\nThe activated neuron value: " << layers[layers.size() - 1].neurons[target].value << std::endl;
+    std::cout << "\nCalculated error: " << avg_error << std::endl;
+}
+
+void NeuralNetwork::normalizeBeforeSoft(double lowerBound, double upperBound) {
+
+    auto maxIt = std::max_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
+                                  [](const Neuron &a, const Neuron &b) {
+                                      return a.value < b.value;
+                                  });
+    double maxVal = maxIt->value;
+    auto minIt = std::min_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
+                                  [](const Neuron &a, const Neuron &b) {
+                                      return a.value < b.value;
+                                  });
+    double minVal = minIt->value;
+
+    std::vector<double> normalizedValues;
+
+    for (int i = 0; i < layers[layers.size() - 1].neurons.size(); i++) {
+        double norm = lowerBound + (upperBound - lowerBound) * (layers[layers.size() - 1].neurons[i].value - minVal) /
+                                   (maxVal - minVal);
+
+        // Clamp values slightly inside the range to avoid strict boundaries
+        if (norm <= lowerBound) norm = lowerBound + 0.01;
+        if (norm >= upperBound) norm = upperBound - 0.01;
+
+        layers[layers.size() - 1].neurons[i].value = norm;
+    }
+}
+
 
 

@@ -23,13 +23,17 @@ public:
     void initialize_weights_and_biases();
     bool openCL_init();
     void feedForward(std::vector<double>& input);
-    void backPropagate(const std::vector<double>& target);
+    void backPropagate(int target);
     void train(const std::vector<std::vector<double>>& inputs,
                const std::vector<std::vector<double>>& targets,
                int epochs, double learningRate);
+    void errorCalculation(int target);
+    void normalizeBeforeSoft(double lowerBound, double upperBound);
     std::string read_kernel_file(const std::string& filename);
 private:
     std::vector<Layer> layers;
+    double avg_error = 0.0;
+    int guess = -1;
 
     cl_platform_id platform_;      // OpenCL platform
     cl_device_id device_;          // OpenCL device

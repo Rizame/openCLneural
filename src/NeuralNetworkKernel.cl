@@ -21,7 +21,6 @@ __kernel void initialize_weights_and_biases(
          weights[id] = sin((id + seeds[id]) * 5.1928667898);  // Random number between -1 and 1 using sine
                 weights[id] = fmod(weights[id], 1.0); // Normalize between 0 and 1
 
-        if(id > 203260) printf("weight value for layer 3: %f\n", weights[id]);
 
         if(weights[id] < -1){
             weights[id] = -1.0;
@@ -29,6 +28,7 @@ __kernel void initialize_weights_and_biases(
         if(weights[id] > 1){
             weights[id] = 1.0;
         }
+
     }
     if (id < num_biases){
         biases[id] = sin((id + seeds[id]) * 112.74932);  // Random number between -1 and 1 using sine
