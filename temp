@@ -1,0 +1,28 @@
+void NeuralNetwork::backPropagate(int target) {
+    // const size_t lastLayer = layers.size() - 1;
+    // double learningRate = 1e-6;
+    //
+    // std::vector<double> prev_delta;
+    //
+    // for (size_t layer = lastLayer; layer >= 1; layer--) {
+    //     std::vector<double> delta(layers[layer].neurons.size());
+    //     for (size_t j = 0; j < layers[layer].neurons.size(); j++) {
+    //         if (layer == lastLayer) {
+    //             delta[j] = error_deriv(layers[layer].neurons[j].value, target == j);
+    //         } else {
+    //             delta[j] = 0;
+    //             for (size_t l = 0; l < layers[layer + 1].neurons.size(); l++) {
+    //                 delta[j] += layers[layer + 1].weights[l * layers[layer].neurons.size() + j] * prev_delta[l];
+    //             }
+    //         }
+    //
+    //         delta[j] *= layers[layer].activate_deriv(layers[layer].neurons[j].value);
+    //
+    //         for (size_t i = 0; i < layers[layer - 1].neurons.size(); i++) {
+    //             layers[layer].weights[j * layers[layer-1].neurons.size() + i] -=
+    //                     learningRate * layers[layer - 1].neurons[i].value * delta[j];
+    //         }
+    //     }
+    //     prev_delta = std::move(delta);
+    // }
+}
