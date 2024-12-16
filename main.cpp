@@ -21,21 +21,21 @@ int main() {
     std::vector<int> target = load_IDX1_to_array("trainData/train-labels.idx1-ubyte", images.size());
     std::vector<int> topology{784, 256, 10};
     NeuralNetwork NN{topology};
-//    NN.feedForward(images[0]);
-//    NN.errorCalculation(target[0]);
-//    NN.backPropagate(target[0]);
+    NN.feedForward(images[0]);
+    NN.errorCalculation(target[0]);
+    NN.backPropagate(target[0]);
 //    NN.feedForward(images[0]);
 //    NN.errorCalculation(target[0]);
 
-    int guessed = 0;
-    for(int i = 0; i < 2500; i++){
-        std::cout<<"Feeding: "<<target[i]<<std::endl;
-        NN.feedForward(images[i]);
-        if(NN.guess == target[i]) guessed++;
-        NN.errorCalculation(target[i]);
-        NN.backPropagate(target[i]);
-    }
-    std::cout<<"Guess%: "<<(float)guessed/2500<<std::endl;
+//    int guessed = 0;
+//    for(int i = 0; i < 2500; i++){
+//        std::cout<<"Feeding: "<<target[i]<<std::endl;
+//        NN.feedForward(images[i]);
+//        if(NN.guess == target[i]) guessed++;
+//        NN.errorCalculation(target[i]);
+//        NN.backPropagate(target[i]);
+//    }
+//    std::cout<<"Guess%: "<<(float)guessed/2500<<std::endl;
 
     return 0; // Success
 

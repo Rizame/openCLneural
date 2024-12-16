@@ -31,7 +31,8 @@ __kernel void back_propagation_cl(__global struct Neuron *prevLayerNeurons, // P
         double targetValue = (id == targetIndex) ? 1.0 : 0.0;
         delta = (value - targetValue); // Derivative of sigmoid
 
-    } else {
+    }
+    else {
         // Compute delta for hidden layer
         double sum = 0.0;
         for (int l = 0; l < numNextLayerNeurons; l++) {
@@ -44,6 +45,8 @@ __kernel void back_propagation_cl(__global struct Neuron *prevLayerNeurons, // P
     // Store the computed delta for the current neuron
     deltas[id] = delta * (value * (1.0 - value));
 
+
+
     // Update weights
     for (int i = 0; i < numPrevLayerNeurons; i++) {
         double oldWeight = weights[id * numPrevLayerNeurons + i];
@@ -51,4 +54,5 @@ __kernel void back_propagation_cl(__global struct Neuron *prevLayerNeurons, // P
         double newWeight = oldWeight - learningRate * inputValue * delta;
         weightUpdates[id * numPrevLayerNeurons + i] = newWeight; // Save updated weight
     }
+
 }
