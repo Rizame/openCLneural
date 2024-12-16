@@ -286,7 +286,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             std::cerr << "Error creating bias weights buffer." << std::endl;
         }
         cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         i != 0 ? layers[i].biases.size() * sizeof(double) : 1 * sizeof(double),
+                                         i != 0 ? layers[i].biases.size() * sizeof(double) : sizeof(double),
                                          layers[i].biases.data(), &err);
 
         if (err != CL_SUCCESS) {
@@ -381,6 +381,7 @@ void NeuralNetwork::backPropagate(int target) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
+    double learningRate = 0.000001;
 
     cl_int err;
 
@@ -413,27 +414,59 @@ void NeuralNetwork::backPropagate(int target) {
         return;
     }
 
-     double learningRate = 1e-6;
 
     // Iterate over layers in reverse order
     for (size_t layer = layers.size() - 1; layer > 0; layer--) {
-        size_t numCurrentNeurons = layers[layer].neurons.size();
-        size_t numPrevNeurons = layers[layer - 1].neurons.size();
+        int numCurrentNeurons = layers[layer].neurons.size();
+        int numPrevNeurons = layers[layer - 1].neurons.size();
+        int numNextNeurons = layer!=layers.size()-1 ? layers[layer+1].neurons.size() : 0;
 
         // Create buffers
         cl_mem prevLayerValues = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                numPrevNeurons * sizeof(double), layers[layer - 1].neurons.data(),
+                                                numPrevNeurons * sizeof(Neuron), layers[layer - 1].neurons.data(),
                                                 &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating prev neruron Layer buff." << std::endl;
+        }
         cl_mem currentLayerValues = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                   numCurrentNeurons * sizeof(double), layers[layer].neurons.data(),
+                                                   numCurrentNeurons * sizeof(Neuron), layers[layer].neurons.data(),
                                                    &err);
-        cl_mem weights = clCreateBuffer(context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating current neruron Layer buff." << std::endl;
+        }
+        cl_mem weights = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                         layers[layer].weights.size() * sizeof(double), layers[layer].weights.data(),
                                         &err);
-        cl_mem deltas = clCreateBuffer(context_, CL_MEM_READ_WRITE, numCurrentNeurons * sizeof(double), nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating weights." << std::endl;
+        }
 
-        cl_mem nextLayerDeltas = clCreateBuffer(context_, CL_MEM_READ_WRITE,
-                                                numPrevNeurons * sizeof(double), nullptr, &err);
+        cl_mem weightsNext = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            layer != layers.size()-1 ? layers[layer+1].weights.size() * sizeof(double) : sizeof (double),
+                                            layer != layers.size()-1 ? layers[layer+1].weights.data() : layers[layer].weights.data(),&err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating weightsNext." << std::endl;
+        }
+
+        cl_mem weightUpdates = clCreateBuffer(context_, CL_MEM_READ_WRITE,
+                                        layers[layer].weights.size() * sizeof(double), nullptr,
+                                        &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating weightUpdates." << std::endl;
+        }
+
+        cl_mem deltas = clCreateBuffer(context_, CL_MEM_READ_WRITE, numCurrentNeurons * sizeof(double), nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating deltas." << std::endl;
+        }
+
+        cl_mem nextLayerDeltas = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                                layer != layers.size()-1 ? layers[layer+1].deltas.size() * sizeof(double) : sizeof(double),
+                                                layer != layers.size()-1 ? layers[layer+1].deltas.data() : layers[layer].deltas.data(), &err);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error creating next Layer deltas." << std::endl;
+        }
 
         // Set kernel arguments
         int isOutputLayer = (layer == layers.size() - 1) ? 1 : 0;
@@ -441,13 +474,22 @@ void NeuralNetwork::backPropagate(int target) {
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &prevLayerValues);
         err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &currentLayerValues);
         err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &weights);
-        err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &deltas);
-        err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &nextLayerDeltas);
-        err |= clSetKernelArg(kernel, 5, sizeof(double), &learningRate);
-        err |= clSetKernelArg(kernel, 6, sizeof(int), &numPrevNeurons);
-        err |= clSetKernelArg(kernel, 7, sizeof(int), &numCurrentNeurons);
-        err |= clSetKernelArg(kernel, 8, sizeof(int), &isOutputLayer);
-        err |= clSetKernelArg(kernel, 9, sizeof(int), &target);
+        err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &weightsNext);
+        err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &weightUpdates);
+        err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &nextLayerDeltas);
+        err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &deltas);
+        err |= clSetKernelArg(kernel, 7, sizeof(int), &numPrevNeurons);
+        err |= clSetKernelArg(kernel, 8, sizeof(int), &numCurrentNeurons);
+        err |= clSetKernelArg(kernel, 9, sizeof(int), &numNextNeurons);
+        err |= clSetKernelArg(kernel, 10, sizeof(double), &learningRate);
+        err |= clSetKernelArg(kernel, 11, sizeof(int), &isOutputLayer);
+        err |= clSetKernelArg(kernel, 12, sizeof(int), &target);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error setting argument." << std::endl;
+        }
+
+        //TODO: fix parameters here in declaration and in kernel
 
         size_t globalWorkSize = numCurrentNeurons;
 
@@ -458,20 +500,40 @@ void NeuralNetwork::backPropagate(int target) {
             return;
         }
 
+
         // Read updated weights back to host
-        err = clEnqueueReadBuffer(commandQueue_, weights, CL_TRUE, 0,
+        err = clEnqueueReadBuffer(commandQueue_, weightUpdates, CL_TRUE, 0,
                                   layers[layer].weights.size() * sizeof(double), layers[layer].weights.data(), 0,
                                   nullptr, nullptr);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error reading from updated weights buffer." << std::endl;
+        }
+
+        err = clEnqueueReadBuffer(commandQueue_, deltas, CL_TRUE, 0,
+                                  layers[layer].deltas.size() * sizeof(double), layers[layer].deltas.data(), 0,
+                                  nullptr, nullptr);
+
+        if (err != CL_SUCCESS) {
+            std::cerr << "Error reading from deltas buffer." << std::endl;
+        }
+
+        clFinish(commandQueue_);
 
         clReleaseMemObject(prevLayerValues);
         clReleaseMemObject(currentLayerValues);
         clReleaseMemObject(weights);
+        clReleaseMemObject(weightsNext);
+        clReleaseMemObject(weightUpdates);
         clReleaseMemObject(deltas);
         clReleaseMemObject(nextLayerDeltas);
     }
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+
+
 }
 
 void NeuralNetwork::train(const std::vector<std::vector<double> > &inputs,

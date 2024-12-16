@@ -19,6 +19,8 @@
 
 class NeuralNetwork {
 public:
+    int guess = -1;
+
     NeuralNetwork(const std::vector<int>& topology);
     void initialize_weights_and_biases();
     bool openCL_init();
@@ -33,7 +35,6 @@ public:
 private:
     std::vector<Layer> layers;
     double avg_error = 0.0;
-    int guess = -1;
 
     cl_platform_id platform_;      // OpenCL platform
     cl_device_id device_;          // OpenCL device

@@ -41,6 +41,5 @@ __kernel void initialize_weights_and_biases(
             biases[id] = 1.0;
         }
     }
-
     // Initialize biases to 0
 }

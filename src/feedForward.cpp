@@ -29,7 +29,12 @@ __kernel void feed_forward_cl(__global struct Neuron *neurons, // previous layer
         // Add bias
         sum += biases[id] * biasWeights[id];
 
+
 //         output[id].value = fmax(sum, 0.0); // ReLU activation
         output[id].value = 1 / (1 + exp(-sum)); // sigmoid activation
+
+//        if(layer_id == 2){
+//            printf("3rd layer: %f\n", output[id].value);
+//        }
     }
 }

@@ -9,6 +9,7 @@
 
 struct Layer {
     std::vector<Neuron> neurons;
+    std::vector<double> deltas;
     std::vector<double> weights;
     std::vector<double> biases;
     std::vector<double> biasWeights;
@@ -19,7 +20,7 @@ struct Layer {
         weights.resize(i == 0 ? 1 : numNeurons*numInputsPerNeuron, 0.0);
         biasWeights.resize(i == 0 ? 1 : numNeurons);
         biases.resize(i == 0 ? 1 : numNeurons, 1.0); // Resize the biases for each neuron
-
+        deltas.resize(i == 0 ? 1 : numNeurons, 0.0);
     }
 };
 
