@@ -45,24 +45,9 @@ void NeuralNetwork::initialize_weights_and_biases() {
 
 
     // Buffers to store weights and biases
-    cl_mem weightsBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalWeights * sizeof(double), nullptr, &err);
-    if (err != CL_SUCCESS || !weightsBuffer) {
-        std::cerr << "Failed to create OpenCL buffer for weights." << std::endl;
-        return;
-    }
-
-    cl_mem seedsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-                                      (totalWeights + totalBiases) * sizeof(double), seeds.data(), &err);
-    if (err != CL_SUCCESS || !seedsBuff) {
-        std::cerr << "Failed to create OpenCL buffer for seeds." << std::endl;
-        return;
-    }
-
-    cl_mem biasesBuffer = clCreateBuffer(context_, CL_MEM_READ_WRITE, totalBiases * sizeof(double), nullptr, &err);
-    if (err != CL_SUCCESS || !biasesBuffer) {
-        std::cerr << "Failed to create OpenCL buffer for biases." << std::endl;
-        return;
-    }
+    cl_mem weightsBuffer = createWriteBuffer<double>(totalWeights);
+    cl_mem seedsBuff = createReadBufferFromVector(seeds);
+    cl_mem biasesBuffer = createWriteBuffer<double>(totalBiases);
 
     // Step 3: Prepare data for kernel execution (initialize to zero first)
     std::vector<double> zeros(totalWeights + totalBiases, 0.0);
@@ -182,8 +167,7 @@ void NeuralNetwork::initialize_weights_and_biases() {
 
 
 NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : platform_(nullptr), device_(nullptr),
-                                                                 context_(nullptr),
-                                                                 commandQueue_(nullptr) {
+                                                                 context_(nullptr), commandQueue_(nullptr) {
     // 784, 256, 10
     // Initialize the layers and neurons based on the topology
     openCL_init();
@@ -246,50 +230,23 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     for (int i = 0; i < layers.size(); i++) {
         int neuronsSize = static_cast<int>(layers[i].neurons.size());
 
-        cl_mem outputBuff = clCreateBuffer(context_, CL_MEM_READ_WRITE, layers[i].neurons.size() * sizeof(Neuron), nullptr, &err);
+        cl_mem outputBuff = createWriteBuffer<Neuron>(layers[i].neurons.size());
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error creating output buffer." << std::endl;
             return;
         }
 
-        cl_mem inputBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          input.size() * sizeof(double), input.data(), &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating input buffer." << std::endl;
-            return;
-        }
+        cl_mem inputBuff = createReadBufferFromVector(input);
 
-        cl_mem neuronsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            i == 0 ? layers[i].neurons.size() * sizeof(Neuron) :layers[i - 1].neurons.size() * sizeof(Neuron),
-                                            i == 0 ? layers[i].neurons.data() : layers[i - 1].neurons.data(), &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating buffer." << std::endl;
-            return;
-        }
+        cl_mem neuronsBuff = createReadBufferFromVector(layers[i == 0 ? i : i - 1].neurons);
 
-        cl_mem weightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            layers[i].weights.size() * sizeof(double),
-                                            layers[i].weights.data(), &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating weights buffer." << std::endl;
-        }
 
-        cl_mem biasweightsBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                layers[i].biasWeights.size() * sizeof(double),
-                                                layers[i].biasWeights.data(), &err);
+        cl_mem weightsBuff = createReadBufferFromVector(layers[i].weights);
 
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating bias weights buffer." << std::endl;
-        }
-        cl_mem BiasBuff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         layers[i].biases.size() * sizeof(double),
-                                         layers[i].biases.data(), &err);
+        cl_mem biasweightsBuff = createReadBufferFromVector(layers[i].biasWeights);
 
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating bias buffer." << std::endl;
-            return;
-        }
+        cl_mem BiasBuff = createReadBufferFromVector(layers[i].biases);
 
         int prevLayerNeuron = i == 0 ? 0 : static_cast<int>(layers[i - 1].neurons.size());
 
@@ -331,19 +288,6 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         clReleaseMemObject(biasweightsBuff);
         clReleaseMemObject(BiasBuff);
     }
-    //normalizeBeforeSoft(-2, 2);
-
-    //layers[layers.size()-1].neurons is the last layer of neurons after the weighted sum calculation.
-    //    auto maxIt = std::max_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
-    //                                  [](const Neuron &a, const Neuron &b) {
-    //                                      return a.value < b.value;
-    //                                  });
-    //    double maxValue = maxIt != layers[layers.size() - 1].neurons.end() ? maxIt->value : 0.0;
-    //
-    //    double exp_sum = std::accumulate(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
-    //                                     0.0, [maxValue](double total, const Neuron &neuron) {
-    //                return total + exp(neuron.value - maxValue);
-    //            });
 
 
     double guessVal = 0.0;
@@ -358,7 +302,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
     }
 
-    std::cout << "\nGuessed: " << guess << std::endl;
+//    std::cout << "\nGuessed: " << guess << std::endl;
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
@@ -378,7 +322,7 @@ void NeuralNetwork::backPropagate(int target) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
-    double learningRate = 0.000001;
+    double learningRate = 0.001;
 
     cl_int err;
 
@@ -416,54 +360,17 @@ void NeuralNetwork::backPropagate(int target) {
     for (size_t layer = layers.size() - 1; layer > 0; layer--) {
         int numCurrentNeurons = layers[layer].neurons.size();
         int numPrevNeurons = layers[layer - 1].neurons.size();
-        int numNextNeurons = layer!=layers.size()-1 ? layers[layer+1].neurons.size() : 0;
+        int numNextNeurons = layer != layers.size() - 1 ? layers[layer + 1].neurons.size() : 0;
 
         // Create buffers
-        cl_mem prevLayerValues = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                numPrevNeurons * sizeof(Neuron), layers[layer - 1].neurons.data(),
-                                                &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating prev neruron Layer buff." << std::endl;
-        }
-        cl_mem currentLayerValues = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                   numCurrentNeurons * sizeof(Neuron), layers[layer].neurons.data(),
-                                                   &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating current neruron Layer buff." << std::endl;
-        }
-        cl_mem weights = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        layers[layer].weights.size() * sizeof(double), layers[layer].weights.data(),
-                                        &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating weights." << std::endl;
-        }
-
-        cl_mem weightsNext = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                            layer != layers.size()-1 ? layers[layer+1].weights.size() * sizeof(double) :layers[layer].weights.size() * sizeof (double),
-                                            layer != layers.size()-1 ? layers[layer+1].weights.data() : layers[layer].weights.data(),&err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating weightsNext." << std::endl;
-        }
-
-        cl_mem weightUpdates = clCreateBuffer(context_, CL_MEM_READ_WRITE,
-                                        layers[layer].weights.size() * sizeof(double), nullptr,
-                                        &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating weightUpdates." << std::endl;
-        }
-
-        cl_mem deltas = clCreateBuffer(context_, CL_MEM_READ_WRITE, numCurrentNeurons * sizeof(double), nullptr, &err);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating deltas." << std::endl;
-        }
-
-        cl_mem nextLayerDeltas = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                                layer != layers.size()-1 ? layers[layer+1].deltas.size() * sizeof(double) :layers[layer].deltas.size() * sizeof(double),
-                                                layer != layers.size()-1 ? layers[layer+1].deltas.data() : layers[layer].deltas.data(), &err);
-
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error creating next Layer deltas." << std::endl;
-        }
+        cl_mem prevLayerValues = createReadBufferFromVector(layers[layer - 1].neurons);
+        cl_mem currentLayerValues = createReadBufferFromVector(layers[layer].neurons);
+        cl_mem weights = createReadBufferFromVector(layers[layer].weights);
+        cl_mem weightsNext = createReadBufferFromVector(layers[layer != layers.size() - 1 ? layer + 1 : layer].weights);
+        cl_mem weightUpdates = createWriteBuffer<double>(layers[layer].weights.size());
+        cl_mem deltas = createWriteBuffer<double>(layers[layer].deltas.size());
+        cl_mem nextLayerDeltas = createReadBufferFromVector(
+                layers[layer != layers.size() - 1 ? layer + 1 : layer].deltas);
 
         // Set kernel arguments
         int isOutputLayer = (layer == layers.size() - 1) ? 1 : 0;
@@ -507,9 +414,8 @@ void NeuralNetwork::backPropagate(int target) {
         }
 
 
-        err = clEnqueueReadBuffer(commandQueue_, deltas, CL_TRUE, 0,
-                                  layers[layer].deltas.size() * sizeof(double), layers[layer].deltas.data(), 0,
-                                  nullptr, nullptr);
+        err = clEnqueueReadBuffer(commandQueue_, deltas, CL_TRUE, 0, layers[layer].deltas.size() * sizeof(double),
+                                  layers[layer].deltas.data(), 0, nullptr, nullptr);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error reading from deltas buffer." << std::endl;
@@ -530,12 +436,11 @@ void NeuralNetwork::backPropagate(int target) {
     clReleaseProgram(program);
 
 
-
 }
 
-void NeuralNetwork::train(const std::vector<std::vector<double> > &inputs,
-                          const std::vector<std::vector<double> > &targets,
-                          int epochs, double learningRate) {
+void
+NeuralNetwork::train(const std::vector<std::vector<double> > &inputs, const std::vector<std::vector<double> > &targets,
+                     int epochs, double learningRate) {
 }
 
 bool NeuralNetwork::openCL_init() {
@@ -621,7 +526,7 @@ void NeuralNetwork::normalizeBeforeSoft(double lowerBound, double upperBound) {
 
     for (int i = 0; i < layers[layers.size() - 1].neurons.size(); i++) {
         double norm = lowerBound + (upperBound - lowerBound) * (layers[layers.size() - 1].neurons[i].value - minVal) /
-                      (maxVal - minVal);
+                                   (maxVal - minVal);
 
         // Clamp values slightly inside the range to avoid strict boundaries
         if (norm <= lowerBound) norm = lowerBound + 0.01;

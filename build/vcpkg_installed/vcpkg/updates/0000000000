@@ -1,6 +1,0 @@
-Package: vcpkg-cmake-config
-Version: 2024-05-23
-Architecture: x64-mingw-dynamic
-Multi-Arch: same
-Abi: f703fede62a30a9bec693db655eb61fe839b17ddf40771bfb54c7b4f6d8d3087
-Status: install ok half-installed

@@ -1,11 +1,3 @@
-double rand(ulong* c) {
-     ulong MODULUS = 281474976710656ULL; // 2^48
-     ulong MULTIPLIER = 19073486328125ULL;
-
-    // Update the seed
-    *c = (*c * MULTIPLIER + 1) % MODULUS;
-    return (double)(*c) / (double)MODULUS;
-}
 
 __kernel void initialize_weights_and_biases(
     __global double* weights,        // Buffer to store weights

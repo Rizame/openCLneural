@@ -21,9 +21,30 @@ int main() {
     std::vector<int> target = load_IDX1_to_array("trainData/train-labels.idx1-ubyte", images.size());
     std::vector<int> topology{784, 256, 10};
     NeuralNetwork NN{topology};
-    NN.feedForward(images[0]);
-    NN.errorCalculation(target[0]);
-    NN.backPropagate(target[0]);
+//    std::vector<std::vector<double>> testinput;
+//    testinput.push_back({0.4,0.6});
+//    testinput.push_back({0.2,0.5,0.6});
+//    testinput.push_back({0.9,0.6,0.7});
+//    testinput.push_back({0.1,0.0,0.8});
+
+
+//    NeuralNetwork test{std::vector<int>{2,2,1}};
+//
+//    test.feedForward(testinput[0]);
+//    test.backPropagate(2);
+
+    for (int j = 0; j < 100; j++) {
+        for (int i = 0; i < 400; i++) {
+            NN.feedForward(images[i]);
+            NN.backPropagate(target[i]);
+        }
+        NN.feedForward(images[0]);
+        NN.errorCalculation(target[0]);
+    }
+
+//    NN.feedForward(images[0]);
+//    NN.errorCalculation(target[0]);
+//    NN.backPropagate(target[0]);
 //    NN.feedForward(images[0]);
 //    NN.errorCalculation(target[0]);
 
@@ -36,7 +57,7 @@ int main() {
 //        NN.backPropagate(target[i]);
 //    }
 //    std::cout<<"Guess%: "<<(float)guessed/2500<<std::endl;
-
-    return 0; // Success
+//
+//    return 0; // Success
 
 }

@@ -1,8 +1,0 @@
-Package: opencl
-Version: v2024.05.08
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-mingw-dynamic
-Multi-Arch: same
-Abi: 6a9a85d9587697599b9049a4b47d9a6c28367b0f3fd27dce533b4938fba67263
-Description: OpenCL SDK
-Status: install ok half-installed

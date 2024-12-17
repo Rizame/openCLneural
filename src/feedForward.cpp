@@ -25,20 +25,24 @@ __kernel void feed_forward_cl(__global struct Neuron *neurons, // previous layer
         // Weighted sum computation
         for (int i = 0; i < num_neurons; i++) {
             sum += neurons[i].value * weights[id * num_neurons + i];
+            //printf("\nneuron val: %f weight val: %f", neurons[i].value, weights[id * num_neurons + i]);
         }
 
+        //printf("\nsum: %f", sum);
         sum += biases[id] * biasWeights[id];
 
 
+        if (weights[id * num_neurons + 0] < -10000000) printf("\nGG");
 //        if(layer_id == 1 && sum == 0){
 //            printf("neuron id")
 //        }
 //         output[id].value = fmax(sum, 0.0); // ReLU activation
         output[id].value = 1 / (1 + exp(-sum)); // sigmoid activation
 
-        if(output[id].value == 0.0 && id < 1){
+        if (output[id].value == 0.0 && id < 1) {
             for (int i = 0; i < num_neurons; i++) {
-                printf("\n:neuron val: %f\n weight val: %f\n sum val: %f\n", neurons[i].value, weights[id * num_neurons + i], sum);
+                printf("\n:neuron val: %f\n weight val: %f\n sum val: %f\n", neurons[i].value,
+                       weights[id * num_neurons + i], sum);
             }
         }
 //        if(layer_id == 1){

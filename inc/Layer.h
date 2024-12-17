@@ -14,14 +14,14 @@ struct Layer {
     std::vector<double> biases;
     std::vector<double> biasWeights;
     std::function<double(double)> activate, activate_deriv;
-    Layer(int numNeurons, int numInputsPerNeuron, int i, std::function<double(double)> activate,
+    Layer(int numNeurons, int numNeuronsPrev, int layerId, std::function<double(double)> activate,
           std::function<double(double)> activateDeriv) : activate(std::move(activate)), activate_deriv(std::move(activateDeriv)) {
 
         neurons.resize(numNeurons); // Resize the neurons vector
-        weights.resize(i == 0 ? 1 : numNeurons*numInputsPerNeuron, 0.0);
-        biasWeights.resize(i == 0 ? 1 : numNeurons);
-        biases.resize(i == 0 ? 1 : numNeurons, 1.0); // Resize the biases for each neuron
-        deltas.resize(i == 0 ? 1 : numNeurons, 0.0);
+        weights.resize(layerId == 0 ? 1 : numNeurons * numNeuronsPrev, 0.0);
+        biasWeights.resize(layerId == 0 ? 1 : numNeurons);
+        biases.resize(layerId == 0 ? 1 : numNeurons, 1.0); // Resize the biases for each neuron
+        deltas.resize(layerId == 0 ? 1 : numNeurons, 0.0);
     }
 };
 
