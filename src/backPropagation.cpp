@@ -1,7 +1,6 @@
 #pragma pack(push, 1)
 struct Neuron {
     double value; // Neuron value after activation
-    double gradient; // For storing temporary derivatives if needed
 };
 #pragma pack(pop)
 
@@ -9,9 +8,9 @@ __kernel void back_propagation_cl(__global struct Neuron *prevLayerNeurons, // P
                                   __global struct Neuron *currentLayerNeurons, // Current layer neurons
                                   __global double *weights, // Weights connecting prev layer to current layer
                                   __global double *weightsNext, // Weights connecting current layer to next layer
-                                  __global double *weightUpdates, // Buffer to store updated weights
                                   __global double *nextLayerDeltas, // Deltas of the next layer
                                   __global double *deltas, // Deltas for the current layer
+                                  __global double *biasWeights,
                                   int numPrevLayerNeurons, // Number of neurons in previous layer
                                   int numCurrentLayerNeurons, // Number of neurons in current layer
                                   int numNextLayerNeurons, // Number of neurons in next layer
@@ -46,13 +45,13 @@ __kernel void back_propagation_cl(__global struct Neuron *prevLayerNeurons, // P
     deltas[id] = delta * (value * (1.0 - value));
 
 
-
     // Update weights
     for (int i = 0; i < numPrevLayerNeurons; i++) {
         double oldWeight = weights[id * numPrevLayerNeurons + i];
         double inputValue = prevLayerNeurons[i].value;
-        double newWeight = oldWeight - learningRate * inputValue * delta;
-        weightUpdates[id * numPrevLayerNeurons + i] = newWeight; // Save updated weight
+        weights[id * numPrevLayerNeurons + i] = oldWeight - learningRate * inputValue * delta;
     }
+    double oldBiasWeight = biasWeights[id];
+    biasWeights[id] = oldBiasWeight - learningRate * deltas[id];
 
 }

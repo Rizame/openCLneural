@@ -1,7 +1,6 @@
 #pragma pack(push, 1)
 struct Neuron {
     double value;
-    double gradient;
 };
 #pragma pack(pop)
 
@@ -16,7 +15,6 @@ __kernel void feed_forward_cl(__global struct Neuron *neurons, // previous layer
 ) {
     int id = get_global_id(0); // Get the global thread ID
     output[id].value = 0.0;
-    output[id].gradient = 0.0;
 
     double sum = 0.0;
     if (layer_id == 0) {
@@ -25,18 +23,13 @@ __kernel void feed_forward_cl(__global struct Neuron *neurons, // previous layer
         // Weighted sum computation
         for (int i = 0; i < num_neurons; i++) {
             sum += neurons[i].value * weights[id * num_neurons + i];
-            //printf("\nneuron val: %f weight val: %f", neurons[i].value, weights[id * num_neurons + i]);
         }
 
-        //printf("\nsum: %f", sum);
         sum += biases[id] * biasWeights[id];
 
 
         if (weights[id * num_neurons + 0] < -10000000) printf("\nGG");
-//        if(layer_id == 1 && sum == 0){
-//            printf("neuron id")
-//        }
-//         output[id].value = fmax(sum, 0.0); // ReLU activation
+
         output[id].value = 1 / (1 + exp(-sum)); // sigmoid activation
 
         if (output[id].value == 0.0 && id < 1) {
@@ -45,8 +38,6 @@ __kernel void feed_forward_cl(__global struct Neuron *neurons, // previous layer
                        weights[id * num_neurons + i], sum);
             }
         }
-//        if(layer_id == 1){
-//            printf("2nd layer: %f\n 2nd layer val: %f\n 2nd layer grad: %f\n index: %d\n",sum, output[id].value ,output[id].gradient, id);
-//        }
+
     }
 }

@@ -7,7 +7,6 @@
 #pragma pack(push, 1)
 struct Neuron {
     double value;
-    double gradient;
 };
 #pragma pack(pop)
 

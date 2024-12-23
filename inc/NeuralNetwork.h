@@ -34,10 +34,6 @@ public:
 
     void backPropagate(int target);
 
-    void
-    train(const std::vector<std::vector<double>> &inputs, const std::vector<std::vector<double>> &targets, int epochs,
-          double learningRate);
-
     void errorCalculation(int target);
 
     void normalizeBeforeSoft(double lowerBound, double upperBound);
@@ -54,9 +50,9 @@ private:
     cl_command_queue commandQueue_; // Command queue for the device
 
     template<typename T>
-    cl_mem createReadBufferFromVector(std::vector<T> &input) {
+    cl_mem createReadBufferFromVector(std::vector<T> &input, cl_mem_flags flags) {
         cl_int err = CL_SUCCESS;
-        cl_mem buff = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, input.size() * sizeof(T), static_cast<void *>(input.data()),
+        cl_mem buff = clCreateBuffer(context_, flags | CL_MEM_USE_HOST_PTR, input.size() * sizeof(T), static_cast<void *>(input.data()),
                                      &err);
         if (err != CL_SUCCESS) {
             throw std::runtime_error{"Error creating input buffer"};
