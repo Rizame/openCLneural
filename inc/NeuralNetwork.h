@@ -41,8 +41,25 @@ public:
     std::string read_kernel_file(const std::string &filename);
 
 private:
+    int totalWeights;
+    int totalBiases;
+    int totalNeurons;
+    int totalDeltas;
+
     std::vector<Layer> layers;
     double avg_error = 0.0;
+
+    const char *kernelSource;
+
+    cl_program program;
+
+    cl_mem weightsBuffer;
+    cl_mem biasesBuffer;
+    cl_mem neuronsBuffer;
+    cl_mem deltasBuffer;
+
+    cl_kernel kernelFF;
+    cl_kernel kernelBP;
 
     cl_platform_id platform_;      // OpenCL platform
     cl_device_id device_;          // OpenCL device

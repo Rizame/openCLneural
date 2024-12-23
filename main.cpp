@@ -39,8 +39,8 @@ int main() {
 
     for (int i = 0; i < 10; i++) {
         NN.feedForward(images[0]);
-        NN.errorCalculation(5);
-        NN.backPropagate(5);
+        //NN.errorCalculation(5);
+        //NN.backPropagate(5);
     }
 
     std::vector<int> guessed{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

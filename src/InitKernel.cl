@@ -1,5 +1,5 @@
 
-__kernel void initialize_weights_and_biases(
+__kernel void init(
     __global double* weights,        // Buffer to store weights
     __global double* biases,         // Buffer to store biases
     int num_weights,           // Total number of weights
