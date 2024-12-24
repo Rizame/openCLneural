@@ -91,16 +91,6 @@ void NeuralNetwork::initialize_topology_buffer(const std::vector<int> &topology)
         std::cerr << "Failed to create topology buffer!" << std::endl;
         return;
     }
-
-    // Ensure the kernel receives this buffer later
-    err = clSetKernelArg(kernelFF, 5, sizeof(cl_mem), &topologyBuffer);
-    if (err != CL_SUCCESS) {
-        std::cerr << "Failed to set kernel argument for topology buffer!" << std::endl;
-    }
-
-    for (size_t i = 0; i < topology.size(); ++i) {
-        std::cout << "Topology[" << i << "] = " << topology[i] << std::endl;
-    }
 }
 
 NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0), totalBiases(0), totalNeurons(0),
@@ -141,19 +131,14 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         std::cerr << "Error setting input buffer." << std::endl;
     }
 
+    err = clSetKernelArg(kernelFF, 0, sizeof(cl_mem), &neuronsBuffer);
+    err |= clSetKernelArg(kernelFF, 1, sizeof(cl_mem), &biasesBuffer);
+    err |= clSetKernelArg(kernelFF, 2, sizeof(cl_mem), &weightsBuffer);
+    err |= clSetKernelArg(kernelFF, 3, sizeof(cl_mem), &topologyBuffer);
 
     for (int i = 1; i < layers.size(); i++) {
-        int neuronsSize = static_cast<int>(layers[i].neurons.size());
-        int prevLayerNeuron = static_cast<int>(layers[i - 1].neurons.size());
+        err = clSetKernelArg(kernelFF, 4, sizeof(int), &i);
 
-
-        err = clSetKernelArg(kernelFF, 0, sizeof(cl_mem), &neuronsBuffer);
-        err |= clSetKernelArg(kernelFF, 1, sizeof(cl_mem), &biasesBuffer);
-        err |= clSetKernelArg(kernelFF, 2, sizeof(cl_mem), &weightsBuffer);
-        err |= clSetKernelArg(kernelFF, 3, sizeof(int), &prevLayerNeuron);
-        err |= clSetKernelArg(kernelFF, 4, sizeof(int), &i);
-        err |= clSetKernelArg(kernelFF, 5, sizeof(cl_mem), &topologyBuffer);
-        err |= clSetKernelArg(kernelFF, 6, sizeof(int), &totalLayers);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error setting kernel FF argument." << std::endl;
