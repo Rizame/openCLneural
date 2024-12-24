@@ -28,7 +28,6 @@ void NeuralNetwork::initialize_weights_and_biases() {
 
     std::vector<double> seeds{};
     seeds.resize(totalWeights + totalBiases, 0.0);
-
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 
     std::default_random_engine generator(seed);
@@ -108,21 +107,17 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     }
 
     cl_int err;
-
+    err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, totalNeurons * sizeof(double), input.data(), 0,
+                               nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error setting input buffer." << std::endl;
+    }
 
 
     for (int i = 1; i < layers.size(); i++) {
         int neuronsSize = static_cast<int>(layers[i].neurons.size());
-
-
-        err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, totalNeurons * sizeof(double), input.data(), 0,
-                                   nullptr, nullptr);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Error setting input buffer." << std::endl;
-        }
-
-
         int prevLayerNeuron = static_cast<int>(layers[i - 1].neurons.size());
+
 
         err = clSetKernelArg(kernelFF, 0, sizeof(cl_mem), &neuronsBuffer);
         err |= clSetKernelArg(kernelFF, 1, sizeof(cl_mem), &biasesBuffer);
