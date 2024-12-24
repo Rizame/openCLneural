@@ -26,6 +26,8 @@ public:
 
     NeuralNetwork(const std::vector<int> &topology);
 
+    void initialize_topology_buffer(const std::vector<int> &topology);
+
     void initialize_weights_and_biases();
 
     bool openCL_init();
@@ -40,6 +42,8 @@ public:
 
     std::string read_kernel_file(const std::string &filename);
 
+    int totalLayers;
+
 private:
     int totalWeights;
     int totalBiases;
@@ -49,17 +53,18 @@ private:
     std::vector<Layer> layers;
     double avg_error = 0.0;
 
-    const char *kernelSource;
+    const char *kernelSource{};
 
-    cl_program program;
+    cl_program program{};
 
-    cl_mem weightsBuffer;
-    cl_mem biasesBuffer;
-    cl_mem neuronsBuffer;
-    cl_mem deltasBuffer;
+    cl_mem weightsBuffer{};
+    cl_mem biasesBuffer{};
+    cl_mem neuronsBuffer{};
+    cl_mem deltasBuffer{};
+    cl_mem topologyBuffer{};
 
-    cl_kernel kernelFF;
-    cl_kernel kernelBP;
+    cl_kernel kernelFF{};
+    cl_kernel kernelBP{};
 
     cl_platform_id platform_;      // OpenCL platform
     cl_device_id device_;          // OpenCL device
@@ -69,7 +74,8 @@ private:
     template<typename T>
     cl_mem createReadBufferFromVector(std::vector<T> &input, cl_mem_flags flags) {
         cl_int err = CL_SUCCESS;
-        cl_mem buff = clCreateBuffer(context_, flags | CL_MEM_USE_HOST_PTR, input.size() * sizeof(T), static_cast<void *>(input.data()),
+        cl_mem buff = clCreateBuffer(context_, flags | CL_MEM_USE_HOST_PTR, input.size() * sizeof(T),
+                                     static_cast<void *>(input.data()),
                                      &err);
         if (err != CL_SUCCESS) {
             throw std::runtime_error{"Error creating input buffer"};
@@ -86,6 +92,7 @@ private:
         }
         return buff;
     }
+
 };
 
 

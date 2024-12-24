@@ -78,9 +78,34 @@ void NeuralNetwork::initialize_weights_and_biases() {
     clReleaseKernel(kernel);
 }
 
+void NeuralNetwork::initialize_topology_buffer(const std::vector<int> &topology) {
+    cl_int err;
+    totalLayers = static_cast<int>(topology.size());
 
-NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0), totalBiases(0), totalNeurons(0), totalDeltas(0),platform_(nullptr), device_(nullptr),
-                                                                 context_(nullptr), commandQueue_(nullptr){
+    // Create buffer for topology
+    topologyBuffer = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                    topology.size() * sizeof(int),
+                                    const_cast<int *>(topology.data()), &err);
+
+    if (err != CL_SUCCESS) {
+        std::cerr << "Failed to create topology buffer!" << std::endl;
+        return;
+    }
+
+    // Ensure the kernel receives this buffer later
+    err = clSetKernelArg(kernelFF, 5, sizeof(cl_mem), &topologyBuffer);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Failed to set kernel argument for topology buffer!" << std::endl;
+    }
+
+    for (size_t i = 0; i < topology.size(); ++i) {
+        std::cout << "Topology[" << i << "] = " << topology[i] << std::endl;
+    }
+}
+
+NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0), totalBiases(0), totalNeurons(0),
+                                                                 totalDeltas(0), platform_(nullptr), device_(nullptr),
+                                                                 context_(nullptr), commandQueue_(nullptr) {
 
     for (size_t i = 0; i < topology.size(); ++i) {
         layers.emplace_back(topology[i], (i == 0 ? 0 : topology[i - 1]), i);
@@ -98,6 +123,9 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0)
 
     // Initialize weights and biases after constructing the layers
     initialize_weights_and_biases();
+
+    // Initialize topology buffer for OpenCL
+    initialize_topology_buffer(topology);
 }
 
 void NeuralNetwork::feedForward(std::vector<double> &input) {
@@ -124,13 +152,16 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         err |= clSetKernelArg(kernelFF, 2, sizeof(cl_mem), &weightsBuffer);
         err |= clSetKernelArg(kernelFF, 3, sizeof(int), &prevLayerNeuron);
         err |= clSetKernelArg(kernelFF, 4, sizeof(int), &i);
+        err |= clSetKernelArg(kernelFF, 5, sizeof(cl_mem), &topologyBuffer);
+        err |= clSetKernelArg(kernelFF, 6, sizeof(int), &totalLayers);
 
         if (err != CL_SUCCESS) {
-            std::cerr << "Error setting kernel argument." << std::endl;
+            std::cerr << "Error setting kernel FF argument." << std::endl;
         }
-        size_t globalWorkSize = neuronsSize;
+        size_t globalWorkSize = layers[i].neurons.size();
 
-        err = clEnqueueNDRangeKernel(commandQueue_, kernelFF, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr, nullptr);
+        err = clEnqueueNDRangeKernel(commandQueue_, kernelFF, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr,
+                                     nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
@@ -140,11 +171,13 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
 
 
         static int offset_w = 0;
-        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE, offset_w,  layers[i].neurons.size() * sizeof(Neuron),
+        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE, offset_w,
+                                  layers[i].neurons.size() * sizeof(Neuron),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
         offset_w += layers[i].neurons.size();
+
         if (err != CL_SUCCESS) {
-            std::cerr << "Failed to read weights buffer." << std::endl;
+            std::cerr << "Failed to read weights buffer. ERR code:" << std::endl;
             return;
         }
 
@@ -204,7 +237,8 @@ void NeuralNetwork::backPropagate(int target) {
         size_t globalWorkSize = numCurrentNeurons;
 
         // Run kernel
-        err = clEnqueueNDRangeKernel(commandQueue_, kernelBP, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr, nullptr);
+        err = clEnqueueNDRangeKernel(commandQueue_, kernelBP, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr,
+                                     nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
@@ -313,6 +347,7 @@ bool NeuralNetwork::openCL_init() {
 
     return true;
 }
+
 double error(double value, double target) {
     return (value - target) * (value - target);
 }
