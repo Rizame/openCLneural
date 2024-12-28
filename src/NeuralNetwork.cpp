@@ -136,12 +136,16 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     err |= clSetKernelArg(kernelFF, 2, sizeof(cl_mem), &weightsBuffer);
     err |= clSetKernelArg(kernelFF, 3, sizeof(cl_mem), &topologyBuffer);
 
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error setting kernel FF basic arguments." << std::endl;
+    }
+
     for (int i = 1; i < layers.size(); i++) {
         err = clSetKernelArg(kernelFF, 4, sizeof(int), &i);
 
 
         if (err != CL_SUCCESS) {
-            std::cerr << "Error setting kernel FF argument." << std::endl;
+            std::cerr << "Error setting kernel FF layer argument." << std::endl;
         }
         size_t globalWorkSize = layers[i].neurons.size();
 
@@ -193,12 +197,6 @@ void NeuralNetwork::backPropagate(int target) {
 
     // Iterate over layers in reverse order
     for (size_t layer = layers.size() - 1; layer > 0; layer--) {
-        int numCurrentNeurons = layers[layer].neurons.size();
-        int numPrevNeurons = layers[layer - 1].neurons.size();
-        int numNextNeurons = layer != layers.size() - 1 ? layers[layer + 1].neurons.size() : 0;
-
-        neuronsBuffer = createReadBufferFromVector(layers[layer].neurons, CL_MEM_READ_ONLY);
-        deltasBuffer = createWriteBuffer<double>(layers[layer].deltas.size());
 
         // Set kernel arguments
         int isOutputLayer = (layer == layers.size() - 1);
@@ -207,19 +205,18 @@ void NeuralNetwork::backPropagate(int target) {
         err |= clSetKernelArg(kernelBP, 1, sizeof(cl_mem), &weightsBuffer);
         err |= clSetKernelArg(kernelBP, 2, sizeof(cl_mem), &deltasBuffer);
         err |= clSetKernelArg(kernelBP, 3, sizeof(cl_mem), &biasesBuffer);
-        err |= clSetKernelArg(kernelBP, 4, sizeof(int), &numPrevNeurons);
-        err |= clSetKernelArg(kernelBP, 5, sizeof(int), &numCurrentNeurons);
-        err |= clSetKernelArg(kernelBP, 6, sizeof(int), &numNextNeurons);
-        err |= clSetKernelArg(kernelBP, 7, sizeof(int), &isOutputLayer);
-        err |= clSetKernelArg(kernelBP, 8, sizeof(int), &target);
-        err |= clSetKernelArg(kernelBP, 9, sizeof(double), &learningRate);
+        err |= clSetKernelArg(kernelBP, 4, sizeof(cl_mem), &topologyBuffer);
+        err |= clSetKernelArg(kernelBP, 5, sizeof(int), &isOutputLayer);
+        err |= clSetKernelArg(kernelBP, 6, sizeof(int), &target);
+        err |= clSetKernelArg(kernelBP, 7, sizeof(int), &layer);
+        err |= clSetKernelArg(kernelBP, 8, sizeof(double), &learningRate);
 
         if (err != CL_SUCCESS) {
             std::cerr << "Error setting argument." << std::endl;
         }
 
 
-        size_t globalWorkSize = numCurrentNeurons;
+        size_t globalWorkSize = layers[layer].neurons.size();
 
         // Run kernel
         err = clEnqueueNDRangeKernel(commandQueue_, kernelBP, 1, nullptr, &globalWorkSize, nullptr, 0, nullptr,

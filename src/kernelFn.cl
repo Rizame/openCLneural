@@ -127,19 +127,15 @@ __kernel void init(
     // Initialize biases to 0
 }
 
-__kernel void back_propagation(__global struct Neuron *prevLayerNeurons, // Previous layer neurons
-                               __global struct Neuron *currentLayerNeurons, // Current layer neurons
+__kernel void back_propagation(__global struct Neuron *neurons,
                                __global double *weights, // Weights connecting prev layer to current layer
-                               __global double *weightsNext, // Weights connecting current layer to next layer
-                               __global double *nextLayerDeltas, // Deltas of the next layer
                                __global double *deltas, // Deltas for the current layer
                                __global double *biasWeights,
-                               int numPrevLayerNeurons, // Number of neurons in previous layer
-                               int numCurrentLayerNeurons, // Number of neurons in current layer
-                               int numNextLayerNeurons, // Number of neurons in next layer
-                               double learningRate, // Learning rate
+                               __global int * topology,
                                int isOutputLayer, // 1 if this is the output layer, 0 otherwise
-                               int targetIndex // Target index for classification (only used in output layer)
+                               int targetIndex, // Target index for classification (only used in output layer)
+                               int layer_id,
+                               double learningRate // Learning rate
 ) {
     int id = get_global_id(0); // Each thread handles one neuron in the current layer
     if (id >= numCurrentLayerNeurons) return;
