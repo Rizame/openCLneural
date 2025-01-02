@@ -123,9 +123,13 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
+    std::vector<Neuron> inputNeurons(layers[0].neurons.size());
+    for (size_t j = 0; j < input.size(); j++) {
+        inputNeurons[j].value = input[j];
+    }
 
     cl_int err;
-    err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, totalNeurons * sizeof(double), input.data(), 0,
+    err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, inputNeurons.size() * sizeof(Neuron), inputNeurons.data(), 0,
                                nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Error setting input buffer." << std::endl;
@@ -139,6 +143,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     if (err != CL_SUCCESS) {
         std::cerr << "Error setting kernel FF basic arguments." << std::endl;
     }
+    int offset_n = 0;
 
     for (int i = 1; i < layers.size(); i++) {
         err = clSetKernelArg(kernelFF, 4, sizeof(int), &i);
@@ -159,11 +164,11 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         clFinish(commandQueue_);
 
 
-        static int offset_w = 0;
-        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE, offset_w,
+
+        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE, (layers[0].neurons.size() + offset_n) * sizeof(Neuron),
                                   layers[i].neurons.size() * sizeof(Neuron),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
-        offset_w += layers[i].neurons.size();
+        offset_n += layers[i].neurons.size();
 
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to read weights buffer. ERR code:" << std::endl;
@@ -171,11 +176,9 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
 
     }
-
-
     double guessVal = 0.0;
-    for (int i = 0; i < layers[layers.size() - 1].neurons.size(); i++) {
-        double value = layers[layers.size() - 1].neurons[i].value;
+    for (int i = 0; i < layers.back().neurons.size(); i++) {
+        double value = layers.back().neurons[i].value;
         if (value > guessVal) {
             guess = i;
             guessVal = static_cast<double>(value);
@@ -190,7 +193,7 @@ void NeuralNetwork::backPropagate(int target) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
-    double learningRate = 0.01;
+    double learningRate = 0.001;
 
     cl_int err;
 
@@ -339,13 +342,12 @@ double error_deriv(double value, double target) {
 }
 
 void NeuralNetwork::errorCalculation(int target) {
-    //avg_error = -log(std::max(layers[layers.size() - 1].neurons[target].value, 1e-7));
     avg_error = 0;
     for (size_t i = 0; i < layers.back().neurons.size(); i++) {
         avg_error += error(layers.back().neurons[i].value, target == i);
     }
     avg_error /= (double) layers.back().neurons.size();
-    std::cout << "\nThe activated neuron value: " << layers[layers.size() - 1].neurons[target].value << std::endl;
+    std::cout << "\nThe activated neuron value: " << layers.back().neurons[target].value << std::endl;
     std::cout << "\nCalculated error: " << avg_error << std::endl;
 }
 
@@ -373,4 +375,14 @@ void NeuralNetwork::normalizeBeforeSoft(double lowerBound, double upperBound) {
 
         layers[layers.size() - 1].neurons[i].value = norm;
     }
+}
+
+NeuralNetwork::~NeuralNetwork() {
+    clReleaseMemObject(neuronsBuffer);
+    clReleaseMemObject(topologyBuffer);
+    clReleaseMemObject(weightsBuffer);
+    clReleaseMemObject(deltasBuffer);
+    clReleaseMemObject(biasesBuffer);
+    clReleaseKernel(kernelBP);
+    clReleaseKernel(kernelFF);
 }

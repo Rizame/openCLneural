@@ -30,11 +30,7 @@ __kernel void feed_forward(
         weight_offset += topology[i - 1] * topology[i];
     }
 
-    // Debug outputs for offsets
-//    printf("[DEBUG] Layer %d, Neuron %d: neuron_offset_prev = %d, weight_offset = %d\n",
-//           layer_id, id, neuron_offset_prev, weight_offset);
 
-    // Validate weight_offset
     if (weight_offset >= 204000) {
         printf("[ERROR] Invalid weight_offset: %d for Layer %d\n", weight_offset, layer_id);
         return;
@@ -69,23 +65,23 @@ __kernel void feed_forward(
 
     sum += biasWeights[bias_index];
 
+    //if(layer_id == 2)printf("[DEBUG] Layer %d, Neuron %d, sum: %f\n",layer_id, id, sum);
     // Apply activation function
-    neurons[neuron_offset_prev - prev_neurons + id].value = 1 / (1 + exp(-sum));
-    printf("\n all prev %d",neuron_offset_prev - prev_neurons + id );
+    neurons[neuron_offset_prev + id].value = 1 / (1 + exp(-sum));
+    //printf("\n just inserted into neuron id:  %d",neuron_offset_prev + id );
     // Debugging output for neuron value
-    /*printf("[DEBUG] Layer %d, Neuron %d, Value (After Activation): %f\n",
-           layer_id, id, neurons[neuron_offset_prev + id].value);*/
+    //printf("[DEBUG] Layer %d, Neuron %d, Value (After Activation): %f\n", layer_id, neuron_offset_prev +  id, neurons[neuron_offset_prev + id].value);
 
-    if(id == 255 && layer_id == 1){
-        printf("\nlatest weight id %d",weight_offset + id * prev_neurons + prev_neurons );
-        printf("\n neuron id: %d",neuron_offset_prev + id);
-        printf("\n neuron val: %f",neurons[neuron_offset_prev -prev_neurons + id].value);
-    }
-    if(id == 9 && layer_id == 2){
-        printf("\nlatest id %d",weight_offset + id * prev_neurons + prev_neurons );
-        printf("\n neuron id: %d",neuron_offset_prev + id);
-        printf("\n neuron val: %f",neurons[neuron_offset_prev - prev_neurons + id].value);
-    }
+//    if(id == 255 && layer_id == 1){
+//        printf("\nlatest weight id %d",weight_offset + id * prev_neurons + prev_neurons );
+//        printf("\n neuron id: %d, neuron_offset_prev:%d",neuron_offset_prev + id, neuron_offset_prev);
+//        printf("\n neuron val: %f",neurons[neuron_offset_prev + id].value);
+//    }
+//    if(id == 9 && layer_id == 2){
+//        printf("\nlatest id %d",weight_offset + id * prev_neurons + prev_neurons );
+//        printf("\n neuron id: %d",neuron_offset_prev + id);
+//        printf("\n neuron val: %f",neurons[neuron_offset_prev + id].value);
+//    }
 
 }
 
@@ -131,45 +127,68 @@ __kernel void back_propagation(__global struct Neuron *neurons,
                                __global double *weights, // Weights connecting prev layer to current layer
                                __global double *deltas, // Deltas for the current layer
                                __global double *biasWeights,
-                               __global int * topology,
+                               __global int *topology,
                                int isOutputLayer, // 1 if this is the output layer, 0 otherwise
                                int targetIndex, // Target index for classification (only used in output layer)
                                int layer_id,
                                double learningRate // Learning rate
 ) {
     int id = get_global_id(0); // Each thread handles one neuron in the current layer
-    if (id >= numCurrentLayerNeurons) return;
+    if (id >= topology[layer_id] || layer_id == 0) return;
+
+
+    //784, 256, 10
+    int neuron_offset = 0;
+    int updated_w_offset = 0;
+
+    int weight_offset_current = 0;
+    int weight_offset_prev = 0;
+
+    for (int i = 0; i < layer_id; i++) {
+        weight_offset_prev = weight_offset_current; // Store the current offset as the previous offset
+        neuron_offset += topology[i];
+        if(i - 2 >= 0) updated_w_offset += topology[i-2];
+        // Only add if `i + 1` is within bounds
+        if (i + 1 < sizeof(topology) / sizeof(topology[0])) {
+            weight_offset_current += topology[i] * topology[i + 1]; // Add weights for the current layer
+        }
+    }
+
+
 
     double delta = 0.0;
-    double value = currentLayerNeurons[id].value;
+    double value = neurons[neuron_offset + id].value;
+
 
     // Compute delta for output layer
     if (isOutputLayer) {
 
-        double targetValue = (id == targetIndex) ? 1.0 : 0.0;
+        double targetValue = (id == targetIndex);
         delta = (value - targetValue); // Derivative of sigmoid
 
     }
     else {
         // Compute delta for hidden layer
         double sum = 0.0;
-        for (int l = 0; l < numNextLayerNeurons; l++) {
-            double weight = weightsNext[l * numCurrentLayerNeurons + id];
-            sum += weight * nextLayerDeltas[l];
+        int deltas_offset = neuron_offset - topology[0];
+        for (int i = 0; i < topology[layer_id+1]+1; i++) {
+            double weight = weights[weight_offset_current + id * i + i-1]; //TODO ID
+            sum += weight * deltas[deltas_offset + i];
         }
-        delta = sum; // Derivative of sigmoid
+        delta = sum;
     }
 
     // Store the computed delta for the current neuron
-    deltas[id] = delta * (value * (1.0 - value));
+    deltas[neuron_offset + id] = delta * (value * (1.0 - value)); ///done
 
 
     // Update weights
-    for (int i = 0; i < numPrevLayerNeurons; i++) {
-        double oldWeight = weights[id * numPrevLayerNeurons + i];
-        double inputValue = prevLayerNeurons[i].value;
-        weights[id * numPrevLayerNeurons + i] = oldWeight - learningRate * inputValue * delta;
-    }
+    for (int i = 0; i < topology[layer_id-1]+1; i++) {
+        double oldWeight = weights[weight_offset_prev + id * i + i];
+        double inputValue = neurons[updated_w_offset + i].value;
+
+        weights[id * i + i-1 + weight_offset_prev] = oldWeight - learningRate * inputValue * delta;
+        }
     double oldBiasWeight = biasWeights[id];
     biasWeights[id] = oldBiasWeight - learningRate * deltas[id];
 

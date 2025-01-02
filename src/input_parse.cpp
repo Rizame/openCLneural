@@ -74,9 +74,6 @@ std::vector<std::vector<double>> load_IDX3(const std::string &filename) {
         throw std::runtime_error("Invalid magic number: " + std::to_string(magic_number));
     }
 
-    std::cout << "Magic Number: " << magic_number << "\n";
-    std::cout << "Number of Images: " << num_images << "\n";
-    std::cout << "Image Size: " << num_rows << "x" << num_cols << "\n";
 
     // Allocate storage for images as ints
     std::vector<std::vector<double>> images(num_images, std::vector<double>(num_rows * num_cols));

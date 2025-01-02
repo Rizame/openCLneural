@@ -13,7 +13,6 @@ struct Layer {
     std::vector<double> weights;
     std::vector<double> biases;
     std::vector<double> biasWeights;
-    std::function<double(double)> activate, activate_deriv;
     Layer(int numNeurons, int numNeuronsPrev, int layerId) {
 
         neurons.resize(numNeurons); // Resize the neurons vector

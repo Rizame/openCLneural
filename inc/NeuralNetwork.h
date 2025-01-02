@@ -26,6 +26,8 @@ public:
 
     NeuralNetwork(const std::vector<int> &topology);
 
+    ~NeuralNetwork();
+
     void initialize_topology_buffer(const std::vector<int> &topology);
 
     void initialize_weights_and_biases();
