@@ -129,7 +129,8 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     }
 
     cl_int err;
-    err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, inputNeurons.size() * sizeof(Neuron), inputNeurons.data(), 0,
+    err = clEnqueueWriteBuffer(commandQueue_, neuronsBuffer, CL_TRUE, 0, inputNeurons.size() * sizeof(Neuron),
+                               inputNeurons.data(), 0,
                                nullptr, nullptr);
     if (err != CL_SUCCESS) {
         std::cerr << "Error setting input buffer." << std::endl;
@@ -161,13 +162,13 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             return;
         }
 
-        clFinish(commandQueue_);
-
-
-
-        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE, (layers[0].neurons.size() + offset_n) * sizeof(Neuron),
+        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
+                                  (layers[0].neurons.size() + offset_n) * sizeof(Neuron),
                                   layers[i].neurons.size() * sizeof(Neuron),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
+
+        clFinish(commandQueue_);
+
         offset_n += layers[i].neurons.size();
 
         if (err != CL_SUCCESS) {

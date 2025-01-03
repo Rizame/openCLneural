@@ -24,7 +24,7 @@ int main() {
     std::vector<int> TEST_target = load_IDX1_to_array("trainData/t10k-labels.idx1-ubyte", TEST_images.size());
 
     std::vector<int> topology{784, 256, 10};
-//    std::vector<int> topology{3, 3, 3};
+//    std::vector<int> topology{784, 3, 3};
     NeuralNetwork NN{topology};
 //    std::vector<std::vector<double>> testinput;
 //    testinput.push_back({0.4,0.6});
@@ -68,7 +68,7 @@ int main() {
             TEST_guessed[0]++;
         }
     }
-    double test_res0 = static_cast<double>(TEST_guessed[0])/60000*100;
+    double test_res0 = static_cast<double>(TEST_guessed[0])/double(images.size())*100;
     std::cout<<"percentage of guesses for TEST data1: "<<test_res0<<std::endl;
 
     for (int j = 5; j < 10; j++) {
