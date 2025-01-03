@@ -1,5 +1,5 @@
 #pragma pack(push, 1)
-struct Neuron {
+struct  __attribute__ ((packed)) Neuron {
     double value;
 };
 #pragma pack(pop)

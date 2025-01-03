@@ -163,11 +163,23 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
 
         err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
-                                  (layers[0].neurons.size() + offset_n) * sizeof(Neuron),
-                                  layers[i].neurons.size() * sizeof(Neuron),
+                                  ( offset_n) * sizeof(double ),
+                                  layers[i].neurons.size() * sizeof(double ),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
 
-        clFinish(commandQueue_);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
+            return;
+        }
+
+//        size_t sum = 0;
+//        for (int j = i - 1; j >= 0; j--) {
+//            sum += layers[j].weights.size();
+//        }
+//        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
+//                                  sum * sizeof(double), layers[i].weights.size() * sizeof(double),
+//                                  layers[i].weights.data(), 0,
+//                                  nullptr, nullptr);
 
         offset_n += layers[i].neurons.size();
 
@@ -175,6 +187,8 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             std::cerr << "Failed to read weights buffer. ERR code:" << std::endl;
             return;
         }
+
+        clFinish(commandQueue_);
 
     }
     double guessVal = 0.0;
@@ -188,6 +202,14 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
 
 }
 
+void NeuralNetwork::Debug(std::ofstream &filename) {
+    for (int i = 0; i < layers.size(); i++) {
+        filename << "\n";
+        for (int j = 0; j < layers[i].weights.size(); j++) {
+            filename << layers[i].weights[j] << ',';
+        }
+    }
+}
 
 void NeuralNetwork::backPropagate(int target) {
     if (!context_ || !commandQueue_) {
@@ -229,7 +251,6 @@ void NeuralNetwork::backPropagate(int target) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
         }
-
 
         clFinish(commandQueue_);
 

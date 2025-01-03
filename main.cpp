@@ -47,56 +47,67 @@ int main() {
 
     std::vector<int> guessed{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::vector<int> TEST_guessed{0, 0};
-
+    std::ofstream output("./src/output.txt");
     for (int j = 0; j < 5; j++) {
         for (int i = 0; i < images.size(); i++) {
             NN.feedForward(images[i]);
-            if(NN.guess == target[i]){
+            if (NN.guess == target[i]) {
                 guessed[j]++;
             }
             NN.backPropagate(target[i]);
-            if(i % 10000 == 0) std::cout<<"| ";
+            if (i % 10000 == 0) {
+                std::cout << "| ";
+//                for (int i = 0; i < TEST_images.size(); i++) {
+//                    NN.feedForward(TEST_images[i]);
+//                    if (NN.guess == TEST_target[i]) {
+//                        TEST_guessed[0]++;
+//                    }
+//                }
+//                double test_res0 = static_cast<double>(TEST_guessed[0]) / double(images.size()) * 100;
+//                std::cout << "percentage of guesses for TEST data1: " << test_res0 << std::endl;
+            }
         }
-        std::cout<<"Done Epoch "<<j<<std::endl;
+        std::cout << "Done Epoch " << j << std::endl;
         NN.feedForward(images[0]);
         NN.errorCalculation(target[0]);
+        NN.Debug(output);
     }
 
     for (int i = 0; i < TEST_images.size(); i++) {
         NN.feedForward(TEST_images[i]);
-        if(NN.guess == TEST_target[i]){
+        if (NN.guess == TEST_target[i]) {
             TEST_guessed[0]++;
         }
     }
-    double test_res0 = static_cast<double>(TEST_guessed[0])/double(images.size())*100;
-    std::cout<<"percentage of guesses for TEST data1: "<<test_res0<<std::endl;
+    double test_res0 = static_cast<double>(TEST_guessed[0]) / double(images.size()) * 100;
+    std::cout << "percentage of guesses for TEST data1: " << test_res0 << std::endl;
 
     for (int j = 5; j < 10; j++) {
         for (int i = 0; i < images.size(); i++) {
             NN.feedForward(images[i]);
-            if(NN.guess == target[i]){
+            if (NN.guess == target[i]) {
                 guessed[j]++;
             }
             NN.backPropagate(target[i]);
-            if(i % 10000 == 0) std::cout<<"| ";
+            if (i % 10000 == 0) std::cout << "| ";
         }
-        std::cout<<"Done Epoch "<<j<<std::endl;
+        std::cout << "Done Epoch " << j << std::endl;
         NN.feedForward(images[0]);
         NN.errorCalculation(target[0]);
     }
 
     for (int i = 0; i < TEST_images.size(); i++) {
         NN.feedForward(TEST_images[i]);
-        if(NN.guess == TEST_target[i]){
+        if (NN.guess == TEST_target[i]) {
             TEST_guessed[1]++;
         }
     }
-    double test_res = static_cast<double>(TEST_guessed[1])/60000*100;
-    std::cout<<"percentage of guesses for TEST data2: "<<test_res<<std::endl;
+    double test_res = static_cast<double>(TEST_guessed[1]) / 60000 * 100;
+    std::cout << "percentage of guesses for TEST data2: " << test_res << std::endl;
 
-    for(int i = 0; i < 10; i++){
-        double result = (double)guessed[i]/60000*100;
-        std::cout<<"percentage of guesses for epoch "<<i<<": "<<result<<std::endl;
+    for (int i = 0; i < 10; i++) {
+        double result = (double) guessed[i] / 60000 * 100;
+        std::cout << "percentage of guesses for epoch " << i << ": " << result << std::endl;
     }
 
     return 0;

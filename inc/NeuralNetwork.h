@@ -45,7 +45,7 @@ public:
     std::string read_kernel_file(const std::string &filename);
 
     int totalLayers;
-
+    void Debug(std::ofstream &filename);
 private:
     int totalWeights;
     int totalBiases;
@@ -94,6 +94,7 @@ private:
         }
         return buff;
     }
+
 
 };
 
