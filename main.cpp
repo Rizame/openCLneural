@@ -72,6 +72,6 @@ int main() {
                 std::cout << "percentage of guesses for TEST data1: " << test_res0 << std::endl;
         NN.Debug(output);
     }
-
+//TODO change back to two stages of ptogess 5 by 5
     return 0;
 }
