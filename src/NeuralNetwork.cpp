@@ -163,8 +163,8 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
         }
 
         err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
-                                  ( offset_n) * sizeof(double ),
-                                  layers[i].neurons.size() * sizeof(double ),
+                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
+                                  layers[i].neurons.size() * sizeof(double),
                                   layers[i].neurons.data(), 0, nullptr, nullptr);
 
         if (err != CL_SUCCESS) {
@@ -249,6 +249,16 @@ void NeuralNetwork::backPropagate(int target) {
                                      nullptr);
         if (err != CL_SUCCESS) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
+            return;
+        }
+        int offset_n = 0;
+        layer == 2 ? offset_n = 784*256 : 0;
+        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
+                                  ( offset_n) * sizeof(double ),
+                                  layers[layer].weights.size() * sizeof(double ),
+                                  layers[layer].weights.data(), 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to read weights." << std::endl;
             return;
         }
 
