@@ -162,31 +162,20 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             return;
         }
 
-        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
-                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
-                                  layers[i].neurons.size() * sizeof(double),
-                                  layers[i].neurons.data(), 0, nullptr, nullptr);
-
-        if (err != CL_SUCCESS) {
-            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
-            return;
-        }
-
-//        size_t sum = 0;
-//        for (int j = i - 1; j >= 0; j--) {
-//            sum += layers[j].weights.size();
+//        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
+//                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
+//                                  layers[i].neurons.size() * sizeof(double),
+//                                  layers[i].neurons.data(), 0, nullptr, nullptr);
+//
+//        if (err != CL_SUCCESS) {
+//            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
+//            return;
 //        }
-//        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
-//                                  sum * sizeof(double), layers[i].weights.size() * sizeof(double),
-//                                  layers[i].weights.data(), 0,
-//                                  nullptr, nullptr);
+/// READ DATA BACK TO DEBUG
+
 
         offset_n += layers[i].neurons.size();
 
-        if (err != CL_SUCCESS) {
-            std::cerr << "Failed to read weights buffer. ERR code:" << std::endl;
-            return;
-        }
 
         clFinish(commandQueue_);
 
@@ -251,16 +240,17 @@ void NeuralNetwork::backPropagate(int target) {
             std::cerr << "Failed to enqueue OpenCL kernel." << std::endl;
             return;
         }
-        int offset_n = 0;
-        layer == 2 ? offset_n = 784*256 : 0;
-        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
-                                  ( offset_n) * sizeof(double ),
-                                  layers[layer].weights.size() * sizeof(double ),
-                                  layers[layer].weights.data(), 0, nullptr, nullptr);
-        if (err != CL_SUCCESS) {
-            std::cerr << "Failed to read weights." << std::endl;
-            return;
-        }
+//        int offset_n = 0;
+//        layer == 2 ? offset_n = 784*256 : 0;
+//        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
+//                                  ( offset_n) * sizeof(double ),
+//                                  layers[layer].weights.size() * sizeof(double ),
+//                                  layers[layer].weights.data(), 0, nullptr, nullptr);
+//        if (err != CL_SUCCESS) {
+//            std::cerr << "Failed to read weights." << std::endl;
+//            return;
+//        }
+/// READ DATA BACK TO PROGRAM TO DEBUG
 
         clFinish(commandQueue_);
 
@@ -365,49 +355,7 @@ bool NeuralNetwork::openCL_init() {
     return true;
 }
 
-double error(double value, double target) {
-    return (value - target) * (value - target);
-}
 
-double error_deriv(double value, double target) {
-    return value - target;
-}
-
-void NeuralNetwork::errorCalculation(int target) {
-    avg_error = 0;
-    for (size_t i = 0; i < layers.back().neurons.size(); i++) {
-        avg_error += error(layers.back().neurons[i].value, target == i);
-    }
-    avg_error /= (double) layers.back().neurons.size();
-    std::cout << "\nThe activated neuron value: " << layers.back().neurons[target].value << std::endl;
-    std::cout << "\nCalculated error: " << avg_error << std::endl;
-}
-
-void NeuralNetwork::normalizeBeforeSoft(double lowerBound, double upperBound) {
-    auto maxIt = std::max_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
-                                  [](const Neuron &a, const Neuron &b) {
-                                      return a.value < b.value;
-                                  });
-    double maxVal = maxIt->value;
-    auto minIt = std::min_element(layers[layers.size() - 1].neurons.begin(), layers[layers.size() - 1].neurons.end(),
-                                  [](const Neuron &a, const Neuron &b) {
-                                      return a.value < b.value;
-                                  });
-    double minVal = minIt->value;
-
-    std::vector<double> normalizedValues;
-
-    for (int i = 0; i < layers[layers.size() - 1].neurons.size(); i++) {
-        double norm = lowerBound + (upperBound - lowerBound) * (layers[layers.size() - 1].neurons[i].value - minVal) /
-                                   (maxVal - minVal);
-
-        // Clamp values slightly inside the range to avoid strict boundaries
-        if (norm <= lowerBound) norm = lowerBound + 0.01;
-        if (norm >= upperBound) norm = upperBound - 0.01;
-
-        layers[layers.size() - 1].neurons[i].value = norm;
-    }
-}
 
 NeuralNetwork::~NeuralNetwork() {
     clReleaseMemObject(neuronsBuffer);
