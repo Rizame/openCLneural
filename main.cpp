@@ -28,9 +28,6 @@ int main() {
     NeuralNetwork NN{topology};
 
 
-
-
-
     std::vector<int> guessed{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::vector<int> TEST_guessed{0, 0};
     std::ofstream output("./src/output.txt");
@@ -85,5 +82,22 @@ int main() {
     std::cout<<"percentage of guesses for TEST data2: "<<test_res<<std::endl;
 
 
+    std::vector<double> input;
+    input.resize(784);
+    while(1){
+        int customTarget = -1;
+        std::string ans;
+        std::cout<<"image process: (yes/no)"<<std::endl;
+        std::cin>>ans;
+        if(ans == "no") break;
+        if(ans != "no" && ans != "yes") continue;
+        std::cout<<"please type your actual number"<<std::endl;
+        std::cin>>customTarget;
+
+        input = NN.readCustom();
+        NN.feedForward(input);
+        std::cout<<"I'm guessing!: "<<NN.guess<<std::endl;
+        NN.backPropagate(customTarget);
+    }
     return 0;
 }

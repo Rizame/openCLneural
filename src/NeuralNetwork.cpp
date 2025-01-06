@@ -162,17 +162,15 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             return;
         }
 
-//        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
-//                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
-//                                  layers[i].neurons.size() * sizeof(double),
-//                                  layers[i].neurons.data(), 0, nullptr, nullptr);
-//
-//        if (err != CL_SUCCESS) {
-//            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
-//            return;
-//        }
-/// READ DATA BACK TO DEBUG
+        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
+                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
+                                  layers[i].neurons.size() * sizeof(double),
+                                  layers[i].neurons.data(), 0, nullptr, nullptr);
 
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
+            return;
+        }
 
         offset_n += layers[i].neurons.size();
 
@@ -365,4 +363,29 @@ NeuralNetwork::~NeuralNetwork() {
     clReleaseMemObject(biasesBuffer);
     clReleaseKernel(kernelBP);
     clReleaseKernel(kernelFF);
+}
+
+std::vector<double> NeuralNetwork::readCustom() {
+
+    std::vector<double> data;  // Vector to store the parsed data
+    std::ifstream file("src/drawing_data.txt");  // Open the file
+
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << std::endl;
+        return data;  // Return empty vector in case of error
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {  // Read the file line by line
+        std::stringstream ss(line);  // Create a stringstream to process the line
+        double value;
+
+        // Extract each space-separated number and add it to the vector
+        while (ss >> value) {
+            data.push_back(value);
+        }
+    }
+
+    file.close();  // Close the file after reading
+    return data;  // Return the populated vector
 }

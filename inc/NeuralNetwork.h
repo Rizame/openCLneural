@@ -38,9 +38,7 @@ public:
 
     void backPropagate(int target);
 
-    void errorCalculation(int target);
-
-    void normalizeBeforeSoft(double lowerBound, double upperBound);
+    std::vector<double> readCustom();
 
     std::string read_kernel_file(const std::string &filename);
 
