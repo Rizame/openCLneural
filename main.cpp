@@ -30,7 +30,7 @@ int main() {
 
     std::vector<int> guessed{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::vector<int> TEST_guessed{0, 0};
-    std::ofstream output("./src/output.txt");
+
 
 
     for (int j = 0; j < 4; j++) {
