@@ -181,7 +181,7 @@ void NeuralNetwork::backPropagate(int target) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
-    double learningRate = 0.0004;
+    double learningRate = 0.0005;
     int totalLayers = layers.size();
 
     cl_int err;
