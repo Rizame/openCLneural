@@ -28,11 +28,10 @@ public:
 
     ~NeuralNetwork();
 
-    void initialize_topology_buffer(const std::vector<int> &topology);
 
     void initialize_weights_and_biases();
 
-    bool openCL_init();
+    bool openCL_init(const std::vector<int> &topology);
 
     void feedForward(std::vector<double> &input);
 
@@ -42,8 +41,6 @@ public:
 
     std::string read_kernel_file(const std::string &filename);
 
-    int totalLayers;
-    void Debug(std::ofstream &filename);
 private:
     int totalWeights;
     int totalBiases;

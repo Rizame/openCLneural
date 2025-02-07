@@ -87,40 +87,37 @@ __kernel void feed_forward(
 
 
 __kernel void init(
-        __global double *weights,        // Buffer to store weights
-        __global double *biases,         // Buffer to store biases
-        __global double *seeds,
+        __global double *weights,        // Buffer of weights
+        __global double *biases,         // Buffer of biases
+        __global double *seeds,     //buffer of random seeds
         int num_weights,           // Total number of weights
         int num_biases          // Total number of biases
 ) {
-    int id = get_global_id(0);       // Get the global thread ID (which is unique for each thread)
+    int id = get_global_id(0);       // Get the global thread ID
 
     if (id < num_weights) {
 
-        weights[id] = sin((id + seeds[id]) * 5.1928667898);  // Random number between -1 and 1 using sine
-        weights[id] = fmod(weights[id], 1.0); // Normalize between 0 and 1
-
+        weights[id] = sin((id + seeds[id]) * 5.1928667898);  // Random number between -1 and 1
+        //weights[id] = fmod(weights[id], 1.0); // Normalize between -1 and 1
 
         if (weights[id] < -1) {
             weights[id] = -1.0;
         }
-        if (weights[id] > 1) {
+        else if (weights[id] > 1) {
             weights[id] = 1.0;
         }
-
     }
     if (id < num_biases) {
-        biases[id] = sin((id + seeds[id]) * 112.74932);  // Random number between -1 and 1 using sine
-        biases[id] = fmod(biases[id], (double) 1.0);  // Normalize between 0 and 1
+        biases[id] = sin((id + seeds[id]) * 112.74932);  // Random number between -1 and 1
+        //biases[id] = fmod(biases[id], (double) 1.0);  // Normalize between -1 and 1
 
         if (biases[id] < -1) {
             biases[id] = -1.0;
         }
-        if (biases[id] > 1) {
+        else if (biases[id] > 1) {
             biases[id] = 1.0;
         }
     }
-    // Initialize biases to 0
 }
 
 __kernel void back_propagation(__global struct Neuron *neurons,
@@ -131,11 +128,11 @@ __kernel void back_propagation(__global struct Neuron *neurons,
                                int isOutputLayer, // 1 if this is the output layer, 0 otherwise
                                int targetIndex, // Target index for classification (only used in output layer)
                                int layer_id,
+                               int number_of_layers,
                                double learningRate // Learning rate
 ) {
     int id = get_global_id(0); // Each thread handles one neuron in the current layer
     if (id >= topology[layer_id] || layer_id == 0) return;
-    int number_of_layers = 3; //TODO make as argument
 
     //784, 256, 10
     int neuron_offset = 0;

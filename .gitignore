@@ -37,3 +37,5 @@ cmake-build-*
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+trainData/emnist-train-images-idx3-ubyte

@@ -72,26 +72,18 @@ void NeuralNetwork::initialize_weights_and_biases() {
 
     clFinish(commandQueue_);
 
-
-    // Step 10: Cleanup OpenCL resources
+        err = clEnqueueReadBuffer(commandQueue_, weightsBuffer, CL_TRUE,
+                                  0,
+                                  layers[1].weights.size() * sizeof(double ),
+                                  layers[1].weights.data(), 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            std::cerr << "Failed to read weights." << std::endl;
+            return;
+        }
 
     clReleaseKernel(kernel);
 }
 
-void NeuralNetwork::initialize_topology_buffer(const std::vector<int> &topology) {
-    cl_int err;
-    totalLayers = static_cast<int>(topology.size());
-
-    // Create buffer for topology
-    topologyBuffer = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                    topology.size() * sizeof(int),
-                                    const_cast<int *>(topology.data()), &err);
-
-    if (err != CL_SUCCESS) {
-        std::cerr << "Failed to create topology buffer!" << std::endl;
-        return;
-    }
-}
 
 NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0), totalBiases(0), totalNeurons(0),
                                                                  totalDeltas(0), platform_(nullptr), device_(nullptr),
@@ -101,21 +93,16 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &topology) : totalWeights(0)
         layers.emplace_back(topology[i], (i == 0 ? 0 : topology[i - 1]), i);
     }
 
-
     for (size_t i = 0; i < layers.size(); ++i) {
         totalWeights += layers[i].weights.size();
         totalBiases += layers[i].biases.size();
         totalNeurons += layers[i].neurons.size();
         totalDeltas += layers[i].deltas.size();
     }
-
-    openCL_init();
-
-    // Initialize weights and biases after constructing the layers
+    openCL_init(topology);
+    // initialize weights and biases after constructing the layers
     initialize_weights_and_biases();
 
-    // Initialize topology buffer for OpenCL
-    initialize_topology_buffer(topology);
 }
 
 void NeuralNetwork::feedForward(std::vector<double> &input) {
@@ -144,7 +131,7 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
     if (err != CL_SUCCESS) {
         std::cerr << "Error setting kernel FF basic arguments." << std::endl;
     }
-    int offset_n = 0;
+    int offset_n = layers[0].neurons.size();
 
     for (int i = 1; i < layers.size(); i++) {
         err = clSetKernelArg(kernelFF, 4, sizeof(int), &i);
@@ -162,22 +149,22 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
             return;
         }
 
-        err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
-                                  ( offset_n + layers[0].neurons.size()) * sizeof(double),
-                                  layers[i].neurons.size() * sizeof(double),
-                                  layers[i].neurons.data(), 0, nullptr, nullptr);
-
-        if (err != CL_SUCCESS) {
-            std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
-            return;
-        }
-
-        offset_n += layers[i].neurons.size();
+        if (i < layers.size()-1) offset_n += layers[i].neurons.size();
 
 
         clFinish(commandQueue_);
 
     }
+    err = clEnqueueReadBuffer(commandQueue_, neuronsBuffer, CL_TRUE,
+                              offset_n * sizeof(double),
+                              layers.back().neurons.size() * sizeof(double),
+                              layers.back().neurons.data(), 0, nullptr, nullptr);
+
+    if (err != CL_SUCCESS) {
+        std::cerr << "Failed to read neuron buffer. ERR code:" << std::endl;
+        return;
+    }
+
     double guessVal = 0.0;
     for (int i = 0; i < layers.back().neurons.size(); i++) {
         double value = layers.back().neurons[i].value;
@@ -189,24 +176,28 @@ void NeuralNetwork::feedForward(std::vector<double> &input) {
 
 }
 
-void NeuralNetwork::Debug(std::ofstream &filename) {
-    for (int i = 0; i < layers.size(); i++) {
-        filename << "\n";
-        for (int j = 0; j < layers[i].weights.size(); j++) {
-            filename << layers[i].weights[j] << ',';
-        }
-    }
-}
-
 void NeuralNetwork::backPropagate(int target) {
     if (!context_ || !commandQueue_) {
         std::cerr << "OpenCL context or command queue not initialized!" << std::endl;
         return;
     }
-    double learningRate = 0.001;
+    double learningRate = 0.0004;
+    int totalLayers = layers.size();
 
     cl_int err;
 
+    err = clSetKernelArg(kernelBP, 0, sizeof(cl_mem), &neuronsBuffer);
+    err |= clSetKernelArg(kernelBP, 1, sizeof(cl_mem), &weightsBuffer);
+    err |= clSetKernelArg(kernelBP, 2, sizeof(cl_mem), &deltasBuffer);
+    err |= clSetKernelArg(kernelBP, 3, sizeof(cl_mem), &biasesBuffer);
+    err |= clSetKernelArg(kernelBP, 4, sizeof(cl_mem), &topologyBuffer);
+    err |= clSetKernelArg(kernelBP, 6, sizeof(int), &target);
+    err |= clSetKernelArg(kernelBP, 8, sizeof(int), &totalLayers);
+    err |= clSetKernelArg(kernelBP, 9, sizeof(double), &learningRate);
+
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error setting general arguments for BP ." << std::endl;
+    }
 
     // Iterate over layers in reverse order
     for (size_t layer = layers.size() - 1; layer > 0; layer--) {
@@ -214,18 +205,12 @@ void NeuralNetwork::backPropagate(int target) {
         // Set kernel arguments
         int isOutputLayer = (layer == layers.size() - 1);
 
-        err = clSetKernelArg(kernelBP, 0, sizeof(cl_mem), &neuronsBuffer);
-        err |= clSetKernelArg(kernelBP, 1, sizeof(cl_mem), &weightsBuffer);
-        err |= clSetKernelArg(kernelBP, 2, sizeof(cl_mem), &deltasBuffer);
-        err |= clSetKernelArg(kernelBP, 3, sizeof(cl_mem), &biasesBuffer);
-        err |= clSetKernelArg(kernelBP, 4, sizeof(cl_mem), &topologyBuffer);
-        err |= clSetKernelArg(kernelBP, 5, sizeof(int), &isOutputLayer);
-        err |= clSetKernelArg(kernelBP, 6, sizeof(int), &target);
+
+        err = clSetKernelArg(kernelBP, 5, sizeof(int), &isOutputLayer);
         err |= clSetKernelArg(kernelBP, 7, sizeof(int), &layer);
-        err |= clSetKernelArg(kernelBP, 8, sizeof(double), &learningRate);
 
         if (err != CL_SUCCESS) {
-            std::cerr << "Error setting argument." << std::endl;
+            std::cerr << "Error setting arguments for BP." << std::endl;
         }
 
 
@@ -258,7 +243,7 @@ void NeuralNetwork::backPropagate(int target) {
 }
 
 
-bool NeuralNetwork::openCL_init() {
+bool NeuralNetwork::openCL_init(const std::vector<int> &topology) {
     cl_int err;
 
     // Step 1: Get the number of platforms available
@@ -333,11 +318,14 @@ bool NeuralNetwork::openCL_init() {
         return false;
     }
 
+    neuronsBuffer = createWriteBuffer<Neuron>(totalNeurons);
     weightsBuffer = createWriteBuffer<double>(totalWeights);
     biasesBuffer = createWriteBuffer<double>(totalBiases);
-    neuronsBuffer = createWriteBuffer<Neuron>(totalNeurons);
     deltasBuffer = createWriteBuffer<double>(totalDeltas);
 
+    topologyBuffer = clCreateBuffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                    topology.size() * sizeof(int),
+                                    const_cast<int *>(topology.data()), &err);
 
     kernelFF = clCreateKernel(program, "feed_forward", &err);
     if (err != CL_SUCCESS || !kernelFF) {
@@ -367,25 +355,24 @@ NeuralNetwork::~NeuralNetwork() {
 
 std::vector<double> NeuralNetwork::readCustom() {
 
-    std::vector<double> data;  // Vector to store the parsed data
-    std::ifstream file("src/drawing_data.txt");  // Open the file
+    std::vector<double> data;
+    std::ifstream file("src/drawing_data.txt");
 
     if (!file.is_open()) {
         std::cerr << "Error opening file: " << std::endl;
-        return data;  // Return empty vector in case of error
+        return data;
     }
 
     std::string line;
-    while (std::getline(file, line)) {  // Read the file line by line
-        std::stringstream ss(line);  // Create a stringstream to process the line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
         double value;
 
-        // Extract each space-separated number and add it to the vector
         while (ss >> value) {
             data.push_back(value);
         }
     }
 
-    file.close();  // Close the file after reading
-    return data;  // Return the populated vector
+    file.close();
+    return data;
 }
